@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { MongoClient } from 'mongodb';
+import { MongoClient, ObjectId } from 'mongodb';
 import config from '../config/config';
 import user from '../interface/user';
 import amqp from 'amqplib';
@@ -50,4 +50,8 @@ const addUser = async(req : Request, res: Response, user: user): Promise<Respons
     }
 }
 
-export default { addUser };
+const validateUser = async(id : string) => { await collections.users.updateOne({ _id : new ObjectId(id)}, {$set : { verified : true }}); }
+
+const getAllUsers = async() => { return await collections.users.find({}).toArray() };
+
+export default { addUser, validateUser, getAllUsers };
