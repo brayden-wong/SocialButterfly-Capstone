@@ -13,11 +13,9 @@ const regex = {
     password : /^(?=.*[0-9])(?=.*[!@#$%^&*])[a-zA-Z0-9!@#$%^&*]{6,16}$/
 }
 
-const verifyAccount = (req : Request, res : Response, next : NextFunction) => {
-    
-    return res.status(400).json({
-        message : 'authorized'
-    });
+const verifyAccount = (req : Request, res : Response, next : NextFunction): Promise<Response> => {
+    let id = String(req.query.id);
+    return database.validateUser(req, res);
 };
 
 const register = async(req : Request, res : Response, next : NextFunction): Promise<Response> => {

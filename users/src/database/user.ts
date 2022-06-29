@@ -50,7 +50,17 @@ const addUser = async(req : Request, res: Response, user: user): Promise<Respons
     }
 }
 
-const validateUser = async(id : string) => { await collections.users.updateOne({ _id : new ObjectId(id)}, {$set : { verified : true }}); }
+const validateUser = async(req : Request, res : Response): Promise<Response> => { 
+    let id = new ObjectId(String(req.query.id));
+    console.log(id);
+    if(id === undefined) return res.status(500).json({
+        error : 'the id was empty. please try again'
+    });
+
+    await collections.users.updateOne({ _id : id}, {$set : { verified : true }}); 
+    return res.status(200).json({ id : id, 
+        message : 'the user was authorized'});
+}
 
 const getAllUsers = async() => { return await collections.users.find({}).toArray() };
 
