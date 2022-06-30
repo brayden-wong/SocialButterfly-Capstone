@@ -5,7 +5,6 @@ import database from '../database/user';
 import user from '../interface/user'
 import config from '../config/config';
 import amqp from 'amqplib';
-import { toEditorSettings } from 'typescript';
 
 const verifyAccount = (req : Request, res : Response, next : NextFunction): Promise<Response> => { return database.validateUser(req, res); };
 
