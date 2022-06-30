@@ -1,16 +1,18 @@
 import express from 'express';
+import {Connection, Channel} from 'amqplib';
 import amqp from 'amqplib';
 import mailer from 'nodemailer';
 import config from './config/config';
 
 const app = express();
 
-const consumeAccount = async() => {
-    const url = config.queue || 'amqp://localhost';
-    const connection = await amqp.connect(url);
-    const channel = connection.createChannel();
 
-    (await channel).consume('register account', data => {
+const consumeAccount = async() => {
+    try {
+        const url = config.queue || 'amqp://localhost';
+        let connection = await amqp.connect(url);
+        let channel = await connection.createChannel();
+        channel.consume('register account', data => {
         if(data != null) {
             let options = JSON.parse(data.content.toString());
             options.from = config.username;
@@ -31,8 +33,47 @@ const consumeAccount = async() => {
             transporter.sendMail(options);
         }
     });
+    } catch (error) {
+        console.log(error);
+    }
+};
+
+const consumeResetPassword = async() => {
+    try {
+        const url = config.queue || 'amqp://localhost';
+        let connection = await amqp.connect(url);
+        let channel = await connection.createChannel();
+
+        channel.consume('reset password', data => {
+            if(data != null) {
+                let options = JSON.parse(data.content.toString());
+                options.from = config.username;
+                
+                const transporter = mailer.createTransport({
+                    service : process.env.service,
+                    port : 587,
+                    secure : false,
+                    requireTLS : true,
+                    auth : {
+                        user : config.username,
+                        pass : config.password
+                    },
+                    logger : true
+                });
+
+                transporter.sendMail(options);
+            }
+        });
+    } catch (error) {
+        console.log(error);
+    }
+};
+try {
+    consumeResetPassword()
+    consumeAccount();
+} catch (error) {
+    console.log('no messages to consume');
 }
 
-consumeAccount();
 
-app.listen(3001);
+app.listen(config.port);

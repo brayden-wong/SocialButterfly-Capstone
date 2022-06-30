@@ -6,22 +6,11 @@ import user from '../interface/user'
 import config from '../config/config';
 import amqp from 'amqplib';
 
-
-const regex = {
-    email : /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
-    phone : /^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$/,
-    password : /^(?=.*[0-9])(?=.*[!@#$%^&*])[a-zA-Z0-9!@#$%^&*]{6,16}$/
-}
-
-const verifyAccount = (req : Request, res : Response, next : NextFunction): Promise<Response> => {
-    let id = String(req.query.id);
-    return database.validateUser(req, res);
-};
+const verifyAccount = (req : Request, res : Response, next : NextFunction): Promise<Response> => { return database.validateUser(req, res); };
 
 const register = async(req : Request, res : Response, next : NextFunction): Promise<Response> => {
     let {
-        first_name,
-        last_name,
+        name,
         password,
         email,
         phone_number,
@@ -42,10 +31,9 @@ const register = async(req : Request, res : Response, next : NextFunction): Prom
    
     const User: user = {
         _id : new ObjectId(),
-        first_name : first_name,
-        last_name : last_name,
+        name : String(name).toLowerCase(),
         password : req.body.password,
-        email : email,
+        email : String(email).toLowerCase(),
         phone_number : parseNumber(phone_number),
         created : new Date(),
         verified : false,
@@ -61,7 +49,7 @@ const register = async(req : Request, res : Response, next : NextFunction): Prom
         });
     }
     else {
-        if(regex.email.test(email) && regex.password.test(password) && regex.phone.test(phone_number)) {
+        if(config.regex.email.test(email) && config.regex.password.test(password) && config.regex.phone.test(phone_number)) {
             bcrypt.hash(password, 10, async(err: Error, hash : string) => {
                 if(err) {
                     return res.status(401).json({
@@ -89,5 +77,42 @@ const getAllUsers = (req : Request, res : Response, next : NextFunction) => {
     
 }
 
+const resetPassword = async(req : Request, res : Response): Promise<Response> => {
+    let username = req.body || '';
+    if(username === '')
+        return res.status(401).json({
+            message : 'the username you sent was empty'
+        });
+    let account = await database.getUser(username.username);
+    if(account !== undefined) {
+        const url = config.server.queue || 'amqp://localhost';
+        const connection = await amqp.connect(url);
+        const channel = await connection.createChannel();
 
-export default {verifyAccount, register, login, getAllUsers};
+        channel.assertQueue('reset password', {durable : false});
+        let link = 'http://' + req.get('host') + '/reset?id=' + account._id;
+
+        let options = {
+            to : account.email,
+            from : '',
+            subject : 'reset password',
+            html : 'Hello, <br> Please click the link to reset your password.<br><a href=' + link + '>Click here to reset your password</a>'
+        };
+        
+        channel.sendToQueue('reset password', Buffer.from(JSON.stringify(options)));
+
+        return res.status(200).json({
+            message : 'please check your email to reset your password'
+        })
+    } else {
+        return res.status(401).json({
+            message : 'the username you entered does not exist'
+        });
+    }
+}
+
+const reset = async(req : Request, res : Response): Promise<Response> => {
+    return database.resetPassword(req, res);
+}
+
+export default { verifyAccount, register, login, getAllUsers, resetPassword, reset };

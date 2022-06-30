@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { MongoClient, ObjectId } from 'mongodb';
+import bcrypt from 'bcryptjs';
 import config from '../config/config';
 import user from '../interface/user';
 import amqp from 'amqplib';
@@ -62,6 +63,35 @@ const validateUser = async(req : Request, res : Response): Promise<Response> => 
         message : 'the user was authorized'});
 }
 
+const getEmail = async(email : string): Promise<boolean> => {
+    if(await collections.users.findOne({email : email}))
+        return true;
+    return false;
+}
+
+const getUser = async(email : string) => {
+    let user = await collections.users.findOne({email : email});
+    console.log(user);
+    if(user)
+        return user;
+    return undefined;
+        
+}
+
+const resetPassword = async(req : Request, res : Response): Promise<Response> => {
+    let password = req.body.password;
+    let id = req.query.id;
+    if(config.regex.password.test(password)) {
+        await collections.users.updateOne({_id : new ObjectId(String(id))}, {$set : {password : bcrypt.hash(password, 10)}});
+        return res.status(200).json({
+            message : 'user successfully updated'
+        });
+    } else 
+        return res.status(403).json({
+            message : 'password did not fit the correct criteria'
+        });
+}
+
 const getAllUsers = async() => { return await collections.users.find({}).toArray() };
 
-export default { addUser, validateUser, getAllUsers };
+export default { addUser, validateUser, getAllUsers, getEmail, getUser, resetPassword};
