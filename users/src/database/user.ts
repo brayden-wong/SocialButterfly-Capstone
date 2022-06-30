@@ -69,7 +69,12 @@ const getEmail = async(email : string): Promise<boolean> => {
     return false;
 }
 
-const getUser = async(email : string) => {
+const getUserById = async(id: string) => {
+    let user = await collections.users.findOne({_id : new ObjectId(id)});
+    return user;
+}
+
+const getUserByEmail = async(email : string) => {
     let user = await collections.users.findOne({email : email});
     console.log(user);
     if(user)
@@ -82,7 +87,7 @@ const resetPassword = async(req : Request, res : Response): Promise<Response> =>
     let password = req.body.password;
     let id = req.query.id;
     if(config.regex.password.test(password)) {
-        await collections.users.updateOne({_id : new ObjectId(String(id))}, {$set : {password : bcrypt.hash(password, 10)}});
+        await collections.users.updateOne({_id : new ObjectId(String(id))}, {$set : {password : await bcrypt.hash(password, 10)}});
         return res.status(200).json({
             message : 'user successfully updated'
         });
@@ -92,6 +97,16 @@ const resetPassword = async(req : Request, res : Response): Promise<Response> =>
         });
 }
 
+type account = {
+    name : string,
+    email : string,
+    phone_number : string
+}
+
+const updateAccount = async(id : string, account : account) => { 
+    await collections.users.updateOne({_id : new ObjectId(id)}, {$set : { name  : account.name, email : account.email, phone_number : account.phone_number }}); 
+}
+
 const getAllUsers = async() => { return await collections.users.find({}).toArray() };
 
-export default { addUser, validateUser, getAllUsers, getEmail, getUser, resetPassword};
+export default { addUser, validateUser, getAllUsers, getEmail, getUserByEmail, getUserById, updateAccount, resetPassword};

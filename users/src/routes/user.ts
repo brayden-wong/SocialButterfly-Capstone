@@ -9,5 +9,6 @@ router.post('/login', controller.login);
 router.post('/register', controller.register);
 router.post('/resetPassword', controller.resetPassword);
 router.patch('/reset', controller.reset);
+router.patch('/update', controller.updateUserInformation);
 
 export = router;

@@ -1,10 +1,11 @@
 import { Request, Response, NextFunction, response, request } from 'express';
 import bcrypt from 'bcryptjs';
-import { ObjectId } from 'mongodb';
+import { ObjectId, WithId } from 'mongodb';
 import database from '../database/user';
 import user from '../interface/user'
 import config from '../config/config';
 import amqp from 'amqplib';
+import { toEditorSettings } from 'typescript';
 
 const verifyAccount = (req : Request, res : Response, next : NextFunction): Promise<Response> => { return database.validateUser(req, res); };
 
@@ -83,7 +84,7 @@ const resetPassword = async(req : Request, res : Response): Promise<Response> =>
         return res.status(401).json({
             message : 'the username you sent was empty'
         });
-    let account = await database.getUser(username.username);
+    let account = await database.getUserByEmail(username.username);
     if(account !== undefined) {
         const url = config.server.queue || 'amqp://localhost';
         const connection = await amqp.connect(url);
@@ -115,4 +116,30 @@ const reset = async(req : Request, res : Response): Promise<Response> => {
     return database.resetPassword(req, res);
 }
 
-export default { verifyAccount, register, login, getAllUsers, resetPassword, reset };
+const updateUserInformation = async(req : Request, res : Response): Promise<Response> => {
+    const id = String(req.query.id);
+    const user = await database.getUserById(id);
+    // console.log(user);
+    if(user !== null) {
+        type account = {
+            name : string,
+            email : string,
+            phone_number : string
+        };
+        let acc :account = {
+            name : req.body.name !== undefined ? req.body.name : user.name,
+            email : req.body.email !== undefined ? req.body.email : user.email,
+            phone_number : req.body.phone_number !== undefined ? req.body.phone_number : user.phone_number
+        };
+
+        database.updateAccount(id, acc);
+        return res.status(200).json({
+            message : 'profile was successfully updated'
+        });
+    }
+    return res.status(500).json({
+        message : 'invalid data was sent'
+    });
+}
+
+export default { verifyAccount, register, login, getAllUsers, resetPassword, reset, updateUserInformation };
