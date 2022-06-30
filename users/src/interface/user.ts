@@ -1,7 +1,6 @@
-import { Document, ObjectId } from 'mongodb';
-import { response, NextFunction } from 'express'
+import { ObjectId } from 'mongodb';
 
-export default interface user extends Document {
+export default interface user {
     _id : ObjectId,
     name : string,
     password : string,
@@ -10,5 +9,3 @@ export default interface user extends Document {
     created : Date,
     verified : boolean
 };
-
-
