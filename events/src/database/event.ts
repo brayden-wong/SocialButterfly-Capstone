@@ -1,5 +1,6 @@
 import { MongoClient, ObjectId } from 'mongodb';
 import config from '../config/config';
+import Event from '../interface/event';
 
 
 const client = new MongoClient(config.mongo.url, config.mongo.options);
@@ -31,6 +32,8 @@ const collections = {
 
 //sphereIndex();
 
+const insertEvent = async(event : Event) => { await collections.event.insertOne(event) };
+
 const checkLocation = async(city : string): Promise<boolean> => {
     const result = await collections.geocode.find({ city : city }).toArray();
     console.log(result.length);
@@ -39,4 +42,4 @@ const checkLocation = async(city : string): Promise<boolean> => {
     return false;
 }
 
-export default { checkLocation };
+export default { checkLocation, insertEvent };
