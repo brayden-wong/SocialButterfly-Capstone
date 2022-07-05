@@ -1,9 +1,13 @@
-import { Request, Response, NextFunction, response, request } from 'express';
+import { Request, Response, NextFunction } from 'express';
+import { ObjectId } from 'mongodb';
+import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { ObjectId, WithId } from 'mongodb';
 import database from '../database/user';
-import user from '../interface/user'
+import User from '../interfaces/user';
+import Token from '../interfaces/Token';
+import Login from '../interfaces/login';
 import config from '../config/config';
+import token from '../middleware/verify';
 import amqp from 'amqplib';
 
 const verifyAccount = (req : Request, res : Response, next : NextFunction): Promise<Response> => { return database.validateUser(req, res); };
@@ -18,7 +22,7 @@ const register = async(req : Request, res : Response, next : NextFunction): Prom
         confirmEmail
     } = req.body
     
-    const checkParameters = (user :user): boolean => {
+    const checkParameters = (user :User): boolean => {
         Object.values(user).every(value => {
             if(value === undefined) return true;
         });
@@ -28,13 +32,14 @@ const register = async(req : Request, res : Response, next : NextFunction): Prom
     const parseNumber = (number : string) => {
         return number.replace('(', '').replace(')', '').replace('-', '');
     }
-   
-    const User: user = {
+
+    const User: User = {
         _id : new ObjectId(),
         name : String(name).toLowerCase(),
         password : req.body.password,
         email : String(email).toLowerCase(),
         phone_number : parseNumber(phone_number),
+        follow_list : [],
         created : new Date(),
         verified : false,
     }
@@ -50,16 +55,15 @@ const register = async(req : Request, res : Response, next : NextFunction): Prom
     }
     else {
         if(config.regex.email.test(email) && config.regex.password.test(password) && config.regex.phone.test(phone_number)) {
-            bcrypt.hash(password, 10, async(err: Error, hash : string) => {
-                if(err) {
+            bcrypt.hash(password, 10, async (err: Error, hash: string) => {
+                if (err) {
                     return res.status(401).json({
-                        message : 'Could not generate hash',
-                        error : err
+                        message: 'Could not generate hash',
+                        error: err
                     });
                 }
-                User.password = hash;  
+                User.password = hash;
             });
-
             return await database.addUser(req, res, User);
         } else {
             return res.status(500).json({
@@ -69,8 +73,36 @@ const register = async(req : Request, res : Response, next : NextFunction): Prom
     }
 }
 
-const login = (req : Request, res : Response, next : NextFunction) => {
-    
+const login = async(req : Request, res : Response, next : NextFunction): Promise<Response> => {
+    let login: Login = {
+        username : req.body.username,
+        password : req.body.password,
+        token : null
+    };
+
+    if(config.regex.email.test(login.username)) {
+        if(await database.getEmail(login.username)) {
+            const user = await database.getUserByEmail(login.username);
+            console.log('user', user);
+            if(user !== undefined && bcrypt.compareSync(login.password, user.password)) {
+                const token = jwt.sign({ id : String(user._id), email : user.email, verified : Boolean(user.verified) }, config.server.token.secret, { expiresIn : 60 * 60 });
+                req.headers['authorization'] = token;
+                login.token = token;
+                return res.status(200).json({
+                    message : 'signed in',
+                    token : login.token
+                });
+            }
+        } else 
+            return res.status(401).json('A wrong username or password was wrong. Please try again'); 
+        
+        
+    } else if(config.regex.phone.test(login.username)) {
+
+    } else {
+        return res.status(401).json('A wrong username or password was wrong. Please try again');
+    }
+    return res.json();
 }
 
 const getAllUsers = (req : Request, res : Response, next : NextFunction) => {
@@ -141,4 +173,22 @@ const updateUserInformation = async(req : Request, res : Response): Promise<Resp
     });
 }
 
-export default { verifyAccount, register, login, getAllUsers, resetPassword, reset, updateUserInformation };
+const addUser = async(req: Request, res: Response): Promise<Response> => {
+    const id = new ObjectId(String(req.query.id));
+    const user: Token = token.getToken(req);
+
+    await database.addFollower(id, user);
+
+    return res.json({
+        user : user.user,
+        id : id
+    });
+}
+
+const removeUser = async(req: Request, res: Response): Promise<Response> => {
+    const id = new ObjectId(String(req.query.id));
+    const user: Token = token.getToken(req);
+    return res.send(user);
+}
+
+export default { verifyAccount, register, login, getAllUsers, resetPassword, reset, updateUserInformation, addUser, removeUser };

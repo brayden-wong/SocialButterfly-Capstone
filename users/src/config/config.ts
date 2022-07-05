@@ -43,8 +43,7 @@ const mongo = {
     database : MONGO_DATABASE,
     collections : {
         MONGO_USERS,
-        MONGO_GEOCODES,
-        MONGO_EVENTS
+        tokens : process.env.MONGO_JSON_WEB_TOKENS
     },
 
     //url: `mongodb+srv://${MONGO_USERNAME}:${MONGO_PASSWORD}@${MONGO_HOST}`

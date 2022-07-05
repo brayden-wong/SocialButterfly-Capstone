@@ -6,6 +6,7 @@ export default interface user {
     password : string,
     email : string,
     phone_number : string,
+    follow_list : string[];
     created : Date,
     verified : boolean
 };

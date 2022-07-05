@@ -1,4 +1,5 @@
 export default interface user {
     username : string,
-    password : string
+    password : string,
+    token : string | null
 };

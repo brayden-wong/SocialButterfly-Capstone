@@ -2,8 +2,10 @@ import { Request, Response } from 'express';
 import { MongoClient, ObjectId } from 'mongodb';
 import bcrypt from 'bcryptjs';
 import config from '../config/config';
-import user from '../interface/user';
+import user from '../interfaces/user';
+import token from '../interfaces/Token';
 import amqp from 'amqplib';
+import jwt from 'jsonwebtoken';
 
 const client = new MongoClient(config.mongo.url, config.mongo.options);
 client.connect();
@@ -11,8 +13,7 @@ client.connect();
 const db = client.db(config.mongo.database);
 const collections = {
     users : db.collection(config.mongo.collections.MONGO_USERS),
-    events : db.collection(config.mongo.collections.MONGO_EVENTS),
-    geocodes : db.collection(config.mongo.collections.MONGO_GEOCODES)
+    tokens : db.collection(String(config.mongo.collections.tokens))
 };
 
 const addUser = async(req : Request, res: Response, user: user): Promise<Response> => {
@@ -31,7 +32,7 @@ const addUser = async(req : Request, res: Response, user: user): Promise<Respons
             const url = config.server.queue || 'amqp://localhost';
             const connection = await amqp.connect(url);
             const channel = await connection.createChannel();
-            await channel.assertQueue('register account', {durable : false});
+            await channel.assertQueue('register account', {durable : true});
             let link = 'http://' + req.get('host') + '/verify?id=' + user._id.toHexString();
         
             let options = {
@@ -49,6 +50,14 @@ const addUser = async(req : Request, res: Response, user: user): Promise<Respons
             user
         });
     }
+}
+
+const addFollower = async(id: ObjectId, token: token): Promise<void> => {
+    if(await collections.users.findOne({follow_list : token.user.email}))
+        console.log('found it');
+    else 
+        await collections.users.updateOne({_id : id,}, {$push : {follow_list : token.user.email}});
+    return;
 }
 
 const validateUser = async(req : Request, res : Response): Promise<Response> => { 
@@ -76,11 +85,9 @@ const getUserById = async(id: string) => {
 
 const getUserByEmail = async(email : string) => {
     let user = await collections.users.findOne({email : email});
-    console.log(user);
     if(user)
         return user;
     return undefined;
-        
 }
 
 const resetPassword = async(req : Request, res : Response): Promise<Response> => {
@@ -107,6 +114,30 @@ const updateAccount = async(id : string, account : account) => {
     await collections.users.updateOne({_id : new ObjectId(id)}, {$set : { name  : account.name, email : account.email, phone_number : account.phone_number }}); 
 }
 
+const removeExpiredTokens = async() => {
+    const results = await collections.tokens.find({}).toArray();
+    const deadTokens: string[] = [];
+    if(results.length == 0)
+        return;
+    for(let i = 0; i < results.length; i++) {
+        try {
+            jwt.verify(String(results[i]), config.server.token.secret);
+            return;
+        } catch(err) {
+            deadTokens.push(String(results[i]));
+        }
+    }
+    await collections.tokens.deleteMany(deadTokens);
+    return;
+}
+
+const containsToken = async(token : string) => {
+    const results = await collections.tokens.find({_id : token}).toArray();
+    if(results.length == 0)
+        return false;
+    return true;
+}
+
 const getAllUsers = async() => { return await collections.users.find({}).toArray() };
 
-export default { addUser, validateUser, getAllUsers, getEmail, getUserByEmail, getUserById, updateAccount, resetPassword};
+export default { addUser, validateUser, getAllUsers, getEmail, getUserByEmail, getUserById, updateAccount, resetPassword, containsToken, checkExpiredTokens: removeExpiredTokens, addFollower };

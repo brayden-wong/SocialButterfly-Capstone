@@ -2,6 +2,16 @@ import express from 'express';
 import routes from './routes/user';
 import bodyParser from 'body-parser';
 
+declare global {
+    namespace express {
+        interface Request {
+            id : string,
+            verified : boolean
+            
+        }
+    }
+}
+
 const app = express();
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
