@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import config from '../config/config';
 import user from '../interfaces/user';
 import token from '../interfaces/Token';
+import account from '../interfaces/account';
 import amqp from 'amqplib';
 import jwt from 'jsonwebtoken';
 
@@ -16,6 +17,9 @@ const collections = {
     tokens : db.collection(String(config.mongo.collections.tokens))
 };
 
+/*
+    adds user to the database and sends them an email to verify their account
+*/
 const addUser = async(req : Request, res: Response, user: user): Promise<Response> => {
     if(!user) {
         return res.status(500).json({
@@ -52,17 +56,36 @@ const addUser = async(req : Request, res: Response, user: user): Promise<Respons
     }
 }
 
-const addFollower = async(id: ObjectId, token: token): Promise<void> => {
+const addFollower = async(id: ObjectId, token: token, res: Response): Promise<Response> => {
     if(await collections.users.findOne({follow_list : token.user.email}))
-        console.log('found it');
-    else 
-        await collections.users.updateOne({_id : id,}, {$push : {follow_list : token.user.email}});
-    return;
+        return res.status(401).json('this account already follows this user');
+    else  {
+        await collections.users.updateOne({ _id : id }, { $push : {follow_list : token.user.email }});
+        const result = await collections.users.find({_id : id}).toArray() as user[];
+        return res.status(200).json({
+            status : 'user added to follower list',
+            follow_list : result[0].follow_list
+        });
+    }
 }
 
+const removeFollower = async(id: ObjectId, token: token, res: Response): Promise<Response> => {
+    const result = await collections.users.find({ _id : id }).toArray() as user[];
+    if(result[0].follow_list.includes(token.user.email)) {
+        await collections.users.updateOne({ _id : id }, { $pull : { follow_list : token.user.email }});
+        const results = await collections.users.find({_id : id }).toArray() as user[];
+        const list = results[0].follow_list;
+        return res.status(200).json({
+            message : 'user was removed',
+            list
+        });
+    } else 
+        return res.status(401).json('you didn\'t follow this user');
+}
+
+// when the user clicks on the link in their email it will verify their account
 const validateUser = async(req : Request, res : Response): Promise<Response> => { 
     let id = new ObjectId(String(req.query.id));
-    console.log(id);
     if(id === undefined) return res.status(500).json({
         error : 'the id was empty. please try again'
     });
@@ -72,7 +95,8 @@ const validateUser = async(req : Request, res : Response): Promise<Response> => 
         message : 'the user was authorized'});
 }
 
-const getEmail = async(email : string): Promise<boolean> => {
+//returns true or false if the email exists in the database
+const checkEmail = async(email : string): Promise<boolean> => {
     if(await collections.users.findOne({email : email}))
         return true;
     return false;
@@ -90,6 +114,7 @@ const getUserByEmail = async(email : string) => {
     return undefined;
 }
 
+// resets the user's email
 const resetPassword = async(req : Request, res : Response): Promise<Response> => {
     let password = req.body.password;
     let id = req.query.id;
@@ -104,12 +129,7 @@ const resetPassword = async(req : Request, res : Response): Promise<Response> =>
         });
 }
 
-type account = {
-    name : string,
-    email : string,
-    phone_number : string
-}
-
+// updates the user's account with specific data that was updated, everything else will be not be updated
 const updateAccount = async(id : string, account : account) => { 
     await collections.users.updateOne({_id : new ObjectId(id)}, {$set : { name  : account.name, email : account.email, phone_number : account.phone_number }}); 
 }
@@ -131,6 +151,7 @@ const removeExpiredTokens = async() => {
     return;
 }
 
+// checks to see if the token has been used to log out. If so the user will need to relog onto the service  
 const containsToken = async(token : string) => {
     const results = await collections.tokens.find({_id : token}).toArray();
     if(results.length == 0)
@@ -138,6 +159,7 @@ const containsToken = async(token : string) => {
     return true;
 }
 
+// returns all users from the database
 const getAllUsers = async() => { return await collections.users.find({}).toArray() };
 
-export default { addUser, validateUser, getAllUsers, getEmail, getUserByEmail, getUserById, updateAccount, resetPassword, containsToken, checkExpiredTokens: removeExpiredTokens, addFollower };
+export default { addUser, validateUser, getAllUsers, getEmail: checkEmail, getUserByEmail, getUserById, updateAccount, resetPassword, containsToken, checkExpiredTokens: removeExpiredTokens, addFollower, removeFollower };

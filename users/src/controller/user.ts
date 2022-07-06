@@ -150,7 +150,6 @@ const reset = async(req : Request, res : Response): Promise<Response> => {
 const updateUserInformation = async(req : Request, res : Response): Promise<Response> => {
     const id = String(req.query.id);
     const user = await database.getUserById(id);
-    // console.log(user);
     if(user !== null) {
         type account = {
             name : string,
@@ -177,18 +176,14 @@ const addUser = async(req: Request, res: Response): Promise<Response> => {
     const id = new ObjectId(String(req.query.id));
     const user: Token = token.getToken(req);
 
-    await database.addFollower(id, user);
-
-    return res.json({
-        user : user.user,
-        id : id
-    });
+    return await database.addFollower(id, user, res);
 }
 
+// removes the user from the follower list
 const removeUser = async(req: Request, res: Response): Promise<Response> => {
     const id = new ObjectId(String(req.query.id));
     const user: Token = token.getToken(req);
-    return res.send(user);
+    return await database.removeFollower(id, user, res);
 }
 
 export default { verifyAccount, register, login, getAllUsers, resetPassword, reset, updateUserInformation, addUser, removeUser };

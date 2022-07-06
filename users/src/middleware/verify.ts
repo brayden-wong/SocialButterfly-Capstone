@@ -14,7 +14,6 @@ const verify = async(req: Request, res: Response, next: NextFunction) => {
         user = user as token;
         next();
     }
-    //return res.status(401).json('you are not logged in');
 };
 
 const getToken = (req: Request): token => {
