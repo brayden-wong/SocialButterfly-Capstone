@@ -57,10 +57,10 @@ const addUser = async(req : Request, res: Response, user: user): Promise<Respons
 }
 
 const addFollower = async(id: ObjectId, token: token, res: Response): Promise<Response> => {
-    if(await collections.users.findOne({follow_list : token.user.email}))
+    if(await collections.users.findOne({follow_list : token.email}))
         return res.status(401).json('this account already follows this user');
     else  {
-        await collections.users.updateOne({ _id : id }, { $push : {follow_list : token.user.email }});
+        await collections.users.updateOne({ _id : id }, { $push : {follow_list : token.email }});
         const result = await collections.users.find({_id : id}).toArray() as user[];
         return res.status(200).json({
             status : 'user added to follower list',
@@ -71,8 +71,8 @@ const addFollower = async(id: ObjectId, token: token, res: Response): Promise<Re
 
 const removeFollower = async(id: ObjectId, token: token, res: Response): Promise<Response> => {
     const result = await collections.users.find({ _id : id }).toArray() as user[];
-    if(result[0].follow_list.includes(token.user.email)) {
-        await collections.users.updateOne({ _id : id }, { $pull : { follow_list : token.user.email }});
+    if(result[0].follow_list.includes(token.email)) {
+        await collections.users.updateOne({ _id : id }, { $pull : { follow_list : token.email }});
         const results = await collections.users.find({_id : id }).toArray() as user[];
         const list = results[0].follow_list;
         return res.status(200).json({

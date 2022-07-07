@@ -22,11 +22,10 @@ const getToken = (req: Request): token => {
     user = user as token;
 
     let authorized: token = {
-        user : {
-            id : user.id,
-            email : user.email,
-            verified : user.verified
-        }
+        id : user.id,
+        name : user.name,
+        email : user.email,
+        phone_number: user.phone_number
     }
 
     return authorized;

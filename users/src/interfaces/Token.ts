@@ -1,7 +1,6 @@
 export default interface TokenInterface {
-    user : {
-        id : string,
-        email : string
-        verified : boolean
-    }
+    id : string,
+    name : string,
+    email : string
+    phone_number : string
 }

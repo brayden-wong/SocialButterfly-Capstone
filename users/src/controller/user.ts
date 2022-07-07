@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import database from '../database/user';
 import User from '../interfaces/user';
+import account from '../interfaces/account';
 import Token from '../interfaces/Token';
 import Login from '../interfaces/login';
 import config from '../config/config';
@@ -82,10 +83,9 @@ const login = async(req : Request, res : Response, next : NextFunction): Promise
 
     if(config.regex.email.test(login.username)) {
         if(await database.getEmail(login.username)) {
-            const user = await database.getUserByEmail(login.username);
-            console.log('user', user);
+            const user = await database.getUserByEmail(login.username) as User;
             if(user !== undefined && bcrypt.compareSync(login.password, user.password)) {
-                const token = jwt.sign({ id : String(user._id), email : user.email, verified : Boolean(user.verified) }, config.server.token.secret, { expiresIn : 60 * 60 });
+                const token = jwt.sign({ id : String(user._id), name : user.name, email : user.email, phone_number: user.phone_number }, config.server.token.secret, { expiresIn : 60 * 60 });
                 req.headers['authorization'] = token;
                 login.token = token;
                 return res.status(200).json({
@@ -151,11 +151,6 @@ const updateUserInformation = async(req : Request, res : Response): Promise<Resp
     const id = String(req.query.id);
     const user = await database.getUserById(id);
     if(user !== null) {
-        type account = {
-            name : string,
-            email : string,
-            phone_number : string
-        };
         let acc :account = {
             name : req.body.name !== undefined ? req.body.name : user.name,
             email : req.body.email !== undefined ? req.body.email : user.email,

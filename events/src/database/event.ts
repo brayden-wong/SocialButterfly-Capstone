@@ -30,7 +30,7 @@ const sphereIndex = async() => {
             }
         }
     }).toArray() as Event[];
-    console.log(`these are the results: ${result}`);
+    //console.log(`these are the results: ${result}`);
 }
 
 sphereIndex();

@@ -29,6 +29,7 @@ const mongo = {
 const server = {
     port : process.env.port,
     host : process.env.host,
+    secret : process.env.secret,
     google_api_key : process.env.KEY
 };
 
