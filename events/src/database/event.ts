@@ -74,6 +74,28 @@ const doTagsMatch = async(event: Event): Promise<Boolean> => {
     return false;
 }
 
+const cityLocation = async(city: string) => {
+    const location = await collections.geocode.findOne({ 'location.city' : city });
+    if(location !== null)
+        return location as Location;
+    return null;
+}
+
+const nearMe = async(coords: number[]) => {
+    const result = await collections.event.find({
+        location : {
+                $near : {
+                    $geometry : {
+                        type : 'Point',
+                        coordinates : coords
+                    },
+                    $maxDistance : 1000 * 1000
+                }
+            }
+        }).toArray() as Event[];
+    return result;
+}
+
 const getEvents = async(query: Object[]): Promise<Event[]> => { return await collections.event.aggregate(query).toArray() as Event[]; };
 
 
@@ -96,4 +118,4 @@ const rsvp = async(id: ObjectId, user : user) => {
     console.log(await collections.event.findOne({_id : id}));
 }
 
-export default { checkLocation, insertEvent, insertCity, eventsThisMonth, doTagsMatch, getEvents, searchByTags, rsvp };
+export default { checkLocation, insertEvent, insertCity, eventsThisMonth, doTagsMatch, getEvents, searchByTags, rsvp, cityLocation, nearMe };

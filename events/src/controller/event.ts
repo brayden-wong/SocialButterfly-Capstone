@@ -299,7 +299,16 @@ const getEvents = async(req: Request, res: Response)/*: Promise<Response>*/ => {
         // }
 }
 
-const searchByTags = async(req: Request, res: Response) => {
+const nearMe = async(req: Request, res: Response) => {
+    const city = await database.cityLocation('Salt Lake City');
+
+    if(city !== null)
+        return res.status(200).json({ events : await database.nearMe(city.location.coordinates) });
+    return res.status(200).json(city);
+    
+}
+
+const searchByTags = async(req: Request, res: Response): Promise<Response> => {
     if(req.body.tags !== undefined) {
         const filters = req.body.tags;
         if(filters.length > 5 || filters.length === 0)
@@ -316,14 +325,15 @@ const searchByTags = async(req: Request, res: Response) => {
         // return res.status(200).json(await database.searchByTags(query));
 
         return res.status(200).json(await database.searchByTags(filters));
-    }
+    } else 
+        return res.status(500).json('no filters were sent in the body');
 }
 
 const rsvp = async(req: Request, res: Response) => {
 
     const user = await getUser(req);
     const id = new ObjectId(String(req.query.id));
-    //await database.rsvp(id, user);
+    await database.rsvp(id, user);
 
     const send = async() => {
         const url = config.server.queue || 'amqp://localhost';
@@ -342,12 +352,9 @@ const rsvp = async(req: Request, res: Response) => {
 
             channel.sendToQueue('rsvp', Buffer.from(JSON.stringify(options)));
     }
-
     await send();
-
-   
 
     return res.status(200).json('you sucessfully rsvp\'ed to the event');
 }
 
-export default { /*registerEvent,*/ getEvents, searchByTags, rsvp }
+export default { registerEvent, getEvents, searchByTags, rsvp, nearMe }

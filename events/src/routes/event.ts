@@ -8,5 +8,6 @@ const router = express.Router();
 router.get('/events', controller.getEvents);
 router.get('/search', controller.searchByTags);
 router.get('/rsvp', verify.verify, controller.rsvp);
+router.get('/near', controller.nearMe);
 
 export = router;
