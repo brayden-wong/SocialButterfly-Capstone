@@ -29,7 +29,8 @@ const server = {
     port : process.env.port,
     host : process.env.host,
     secret : process.env.secret,
-    google_api_key : process.env.KEY
+    google_api_key : process.env.KEY,
+    queue : String(process.env.EMAIL) || 'amqp://localhost'
 };
 
 const config = {

@@ -13,7 +13,7 @@ export default interface Event {
         type : 'Point',
         coordinates : number[]
     },
-    rsvp : 0,
+    rsvp : string[],
     available_slots : number,
     organizations : [string] | [null],
     online : boolean

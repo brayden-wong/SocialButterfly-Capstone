@@ -1,8 +1,11 @@
+import axios from 'axios';
 import { MongoClient, ObjectId } from 'mongodb';
 import config from '../config/config';
 import Event from '../interfaces/event';
 import Location from '../interfaces/location';
 import range from '../interfaces/range';
+import token from '../interfaces/token';
+import user from '../interfaces/user';
 
 const client = new MongoClient(config.mongo.url, config.mongo.options);
 client.connect();
@@ -71,11 +74,26 @@ const doTagsMatch = async(event: Event): Promise<Boolean> => {
     return false;
 }
 
-const getEvents = async(query: Object[]): Promise<Event[]> => {
-const result = await collections.event.aggregate(query).toArray() as Event[];
-    console.log('results', result)
-    return await collections.event.aggregate(query).toArray() as Event[];
+const getEvents = async(query: Object[]): Promise<Event[]> => { return await collections.event.aggregate(query).toArray() as Event[]; };
+
+
+const searchByTags = async(filters: string[]): Promise<Event[]> => { 
+    const events: Event[] = [];
+
+    for(let i = 0; i < filters.length; i++) {
+        const results = await collections.event.find({tags : filters[i]}).toArray() as Event[];
+        results.forEach((item: Event) => {
+            events.push(item);
+        });
+    }
+
+    return events;
+};
+
+const rsvp = async(id: ObjectId, user : user) => {
+    await collections.event.updateOne({_id : id}, { $push : {rsvp : user.email}});
+
+    console.log(await collections.event.findOne({_id : id}));
 }
 
-
-export default { checkLocation, insertEvent, insertCity, eventsThisMonth, doTagsMatch, getEvents };
+export default { checkLocation, insertEvent, insertCity, eventsThisMonth, doTagsMatch, getEvents, searchByTags, rsvp };

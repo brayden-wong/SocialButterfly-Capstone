@@ -1,6 +1,7 @@
 export default interface query {
-    name : string | null,
-    tags : string[] | null,
-    inclusive : boolean | null,
-    date : Date | null
+    tags : string[] | undefined,
+    rangeDates : Date[] | undefined,
+    date : Date,
+    city : string,
+    radius : number
 }

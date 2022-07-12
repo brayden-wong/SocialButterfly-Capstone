@@ -3,7 +3,9 @@ import { ObjectId } from 'mongodb';
 import Event from '../interfaces/event';
 import axios from 'axios';
 import Location from '../interfaces/location';
+import amqp from 'amqplib';
 import config from '../config/config';
+import token from '../interfaces/token'
 import database from '../database/event';
 import range from '../interfaces/range';
 import query from '../interfaces/query';
@@ -123,7 +125,8 @@ const uploadCity = async(event: Event) => {
 };
 
 const getUser = async(req: Request): Promise<user> => {
-    const response = await axios.get(`http://localhost:3000/getUser?id=${verify.getToken(req)}`);
+    const id = verify.getToken(req);
+    const response = await axios.get(`http://localhost:3000/getUser?id=${id}`)
     const user:user = {
         _id : response.data.user._id,
         name : response.data.user.name,
@@ -178,7 +181,7 @@ const registerEvent = async(req : Request, res : Response): Promise<Response> =>
             coordinates : []
         },
         city : req.body.city,
-        rsvp : 0,
+        rsvp : [],
         available_slots : req.body.available_slots,
         organizations : req.body.organizations,
         online : req.body.online
@@ -226,52 +229,125 @@ const registerEvent = async(req : Request, res : Response): Promise<Response> =>
 }
 
 const getEvents = async(req: Request, res: Response)/*: Promise<Response>*/ => {
-    let events: Event[] = [];
-    let include: boolean;
     const parameters: query = {
-        name : req.body.event_name === undefined ? null : req.body.event_name,
-        tags : req.body.tags === undefined ? null : req.body.tags,
-        inclusive : req.body.inclusive === undefined ? null : req.body.inclusive,
-        date : req.body.date === undefined ? null : new Date(req.body.date)
+        tags : req.body.tags === (undefined || null) ? undefined : req.body.tags,
+        rangeDates : req.body.date === (undefined || null) ? undefined : req.body.dates,
+        date : req.body.date === (undefined || null) ? undefined : req.body.date,
+        city : req.body.city === (undefined || null) ? undefined : req.body.city,
+        radius : req.body.radius === (undefined || null) ? undefined : req.body.radius
     };
     
-    if(parameters.inclusive) include = true;
-    else include = false;
-    
+    let dateBounds: Date[] = [];
     if(parameters.date !== null)
-        console.log(parameters.date.toISOString().substring(0, 10));
+        dateBounds = [new Date(parameters.date.getFullYear() + '-' + (parameters.date.getMonth() + 1) + '-' + parameters.date.getDate()),
+            new Date(String(parameters.date.getFullYear()) + '-' + String(parameters.date.getMonth() + 1) + '-' + String(parameters.date.getDate() + 1))
+        ];
+    
 
-    if(include) {
-        if(parameters.name !== null && parameters.tags !== null && parameters.date !== null) {
-            const gte = String(parameters.date.getFullYear() + (parameters.date.getMonth() + 1) + parameters.date.getDay()) + 'T00:00:00.000Z';
-            const lt = String(parameters.date.getFullYear() + (parameters.date.getMonth() + 1) + parameters.date.getDay() + 1) + 'T00:00:00.000Z';
-            const query = [{
-                $match : { 
-                    $and : [
-                        { event_name : parameters.name},
-                        { tags : parameters.tags },
-                        { $and : [
-                            { date : { $gte : new Date(gte) }},
-                            { date : { $lt : new Date(lt) }}
-                        ]}
-                    ]
-                }
-            }];
-            return res.status(200).json({events : await database.getEvents(query)})
-        } else if(parameters !== undefined && parameters.tags !== undefined && parameters.date === undefined) {
-            const query = [{
-                $match : {
-                    $and : [
-                        { event_name : parameters.name },
-                        { tags : parameters.tags }
-                    ]
-                }
-            }];
-            return res.status(200).json({events : await database.getEvents(query)})
-        }
-        
-    }
+        // if(parameters.name !== null && parameters.tags !== null && parameters.date !== null) {
+        //     const query = [{
+        //         $match : { 
+        //             $and : [
+        //                 { event_name : parameters.name},
+        //                 { tags : parameters.tags },
+        //                 { $and : [
+        //                     { date : { $gte : dateBounds[0] }},
+        //                     { date : { $lt : dateBounds[1] }}
+        //                 ]}
+        //             ]
+        //         }
+        //     }];
+        //     return res.status(200).json(await database.getEvents(query));
+        // } else if(parameters.name !== null && parameters.tags !== null && parameters.date === null) {
+        //     const query = [{
+        //         $match : {
+        //             $and : [
+        //                 { event_name : parameters.name },
+        //                 { tags : parameters.tags }
+        //             ]
+        //         }
+        //     }];
+        //     return res.status(200).json(await database.getEvents(query));
+        // } else if(parameters.name !== null && parameters.tags === null && parameters.date !== null) {
+        //     const query = [{
+        //         $match : {
+        //             $and : [
+        //                 { event_name : parameters.name },
+        //                 { $and : [
+        //                     { date : { $gte : dateBounds[0] }},
+        //                     { date : { $lt : dateBounds[1] }}
+        //                 ]}
+        //             ]
+        //         }
+        //     }];
+        //     return res.status(200).json(await database.getEvents(query));
+        // } else if(parameters.tags === null && parameters.date !== null && parameters.name !== null) {
+        //     const query = [{
+        //         $match : {
+        //             $and : [
+        //                 { tags : parameters.tags },
+        //                 { $and : [
+        //                     { date : { $gte : dateBounds[0] }},
+        //                     { date : { $lt : dateBounds[1] }}
+        //                 ]}
+        //             ]
+        //         }
+        //     }];
+        //     return res.status(200).json(await database.getEvents(query)); 
+        // } else if() {
 
+        // }
 }
 
-export default { registerEvent, getEvents }
+const searchByTags = async(req: Request, res: Response) => {
+    if(req.body.tags !== undefined) {
+        const filters = req.body.tags;
+        if(filters.length > 5 || filters.length === 0)
+            return res.status(500).json({
+                message : 'too many filters or you don\'t have any filters'
+            });
+        /* Pipeline query */
+        // const query = [{
+        //     $match : {
+        //         tags : { $all : filters }
+        //     }
+        // }];
+        // const query = { tags : filters }}
+        // return res.status(200).json(await database.searchByTags(query));
+
+        return res.status(200).json(await database.searchByTags(filters));
+    }
+}
+
+const rsvp = async(req: Request, res: Response) => {
+
+    const user = await getUser(req);
+    const id = new ObjectId(String(req.query.id));
+    //await database.rsvp(id, user);
+
+    const send = async() => {
+        const url = config.server.queue || 'amqp://localhost';
+            const connection = await amqp.connect(url);
+            const channel = await connection.createChannel();
+            await channel.assertQueue('register account', {durable : true});
+        
+            let options = {
+                from : '',
+                to : user.email,
+                subject : 'Social Butterfly Account Activation',
+                html : 'Hello, <br> Thank you for rsvp\'ing for the event!<br>'
+                + 'You will receive a reminder email 1 week before the event.<br><br>'
+                + '©SocialButterfly'
+            };
+
+            channel.sendToQueue('rsvp', Buffer.from(JSON.stringify(options)));
+    }
+
+    await send();
+
+   
+
+    return res.status(200).json('you sucessfully rsvp\'ed to the event');
+}
+
+export default { /*registerEvent,*/ getEvents, searchByTags, rsvp }
