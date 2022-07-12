@@ -9,7 +9,6 @@ import range from '../interfaces/range';
 import query from '../interfaces/query';
 import user from '../interfaces/user';
 import verify from '../middleware/verify';
-import event from '../database/event';
 
 
 const getMonth = async(date: Date) => {
@@ -226,7 +225,7 @@ const registerEvent = async(req : Request, res : Response): Promise<Response> =>
     }
 }
 
-const getEvents = async(req: Request, res: Response): Promise<Response> => {
+const getEvents = async(req: Request, res: Response)/*: Promise<Response>*/ => {
     let events: Event[] = [];
     let include: boolean;
     const parameters: query = {
@@ -238,26 +237,41 @@ const getEvents = async(req: Request, res: Response): Promise<Response> => {
     
     if(parameters.inclusive) include = true;
     else include = false;
+    
+    if(parameters.date !== null)
+        console.log(parameters.date.toISOString().substring(0, 10));
 
     if(include) {
-        if(parameters.name !== undefined && parameters.tags !== undefined && parameters.date !== undefined) {
-            console.log('hello');
-            console.log(parameters);
+        if(parameters.name !== null && parameters.tags !== null && parameters.date !== null) {
+            const gte = String(parameters.date.getFullYear() + (parameters.date.getMonth() + 1) + parameters.date.getDay()) + 'T00:00:00.000Z';
+            const lt = String(parameters.date.getFullYear() + (parameters.date.getMonth() + 1) + parameters.date.getDay() + 1) + 'T00:00:00.000Z';
             const query = [{
                 $match : { 
                     $and : [
                         { event_name : parameters.name},
                         { tags : parameters.tags },
-                        { date : { $eq : parameters.date }}
+                        { $and : [
+                            { date : { $gte : new Date(gte) }},
+                            { date : { $lt : new Date(lt) }}
+                        ]}
                     ]
                 }
             }];
-            events = await database.getEvents(query);
+            return res.status(200).json({events : await database.getEvents(query)})
+        } else if(parameters !== undefined && parameters.tags !== undefined && parameters.date === undefined) {
+            const query = [{
+                $match : {
+                    $and : [
+                        { event_name : parameters.name },
+                        { tags : parameters.tags }
+                    ]
+                }
+            }];
+            return res.status(200).json({events : await database.getEvents(query)})
         }
         
     }
 
-    return res.status(200).json(events);
 }
 
 export default { registerEvent, getEvents }
