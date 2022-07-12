@@ -1,7 +1,7 @@
 import express from 'express';
-import routes from './src/routes/event';
+import routes from './routes/event';
 import bodyParser from 'body-parser';
-import config from './src/config/config';
+import config from './config/config';
 
 const app = express();
 app.use(bodyParser.urlencoded({ extended: true }));
