@@ -33,7 +33,7 @@ const sphereIndex = async() => {
     //console.log(`these are the results: ${result}`);
 }
 
-sphereIndex();
+//sphereIndex();
 
 const insertCity = async(location: Location) => {
     await collections.geocode.insertOne(location);
@@ -51,4 +51,31 @@ const checkLocation = async(city : string): Promise<boolean> => {
     return false; 
 }
 
-export default { checkLocation, insertEvent, insertCity, eventsThisMonth };
+const doTagsMatch = async(event: Event): Promise<Boolean> => {
+    console.log(event);
+    const results = await collections.event.find({ 
+        location : {
+            $near : {
+                $geometry : {
+                    type : 'Point',
+                    coordinates : [ event.location.coordinates[0], event.location.coordinates[1] ]
+                },
+                $maxDistance : 40233.6
+            }
+        },
+        tags : event.tags 
+    }).toArray() as Event[]
+
+    if(results.length > 0)
+        return true;
+    return false;
+}
+
+const getEvents = async(query: Object[]): Promise<Event[]> => {
+const result = await collections.event.aggregate(query).toArray() as Event[];
+    console.log('results', result)
+    return await collections.event.aggregate(query).toArray() as Event[];
+}
+
+
+export default { checkLocation, insertEvent, insertCity, eventsThisMonth, doTagsMatch, getEvents };

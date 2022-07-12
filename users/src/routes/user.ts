@@ -5,6 +5,7 @@ import verify from '../middleware/verify';
 const router = express.Router();
 
 router.get('/verify', controller.verifyAccount);
+router.get('/getUser', controller.getUser);
 router.get('/getAllUsers', verify.verify, controller.getAllUsers);
 router.post('/login', controller.login);
 router.post('/register', controller.register);

@@ -1,6 +1,5 @@
+import { ObjectId } from 'mongodb';
+
 export default interface TokenInterface {
-    id : string,
-    name : string,
-    email : string
-    phone_number : string
+    id : ObjectId,
 }

@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import config from '../config/config';
 import database from '../database/user';
-import token from '../interfaces/Token';
+import token from '../interfaces/token';
 
 const verify = async(req: Request, res: Response, next: NextFunction) => {
     let token = String(req.headers['authorization']).split(' ')[1];
@@ -23,10 +23,7 @@ const getToken = (req: Request): token => {
 
     let authorized: token = {
         id : user.id,
-        name : user.name,
-        email : user.email,
-        phone_number: user.phone_number
-    }
+    };
 
     return authorized;
 }

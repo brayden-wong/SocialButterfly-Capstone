@@ -3,12 +3,14 @@ import { ObjectId } from 'mongodb';
 export default interface Event {
     _id : ObjectId,
     event_name : string,
+    host: string,
     date : Date,
-    tags : [string],
+    time : string,
+    tags : string[],
     formatted_address : string,
     city : string,
     location : {
-        type : string,
+        type : 'Point',
         coordinates : number[]
     },
     rsvp : 0,

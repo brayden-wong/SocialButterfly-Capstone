@@ -1,11 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
-import { ObjectId } from 'mongodb';
+import { ListCollectionsCursor, ObjectId } from 'mongodb';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import database from '../database/user';
 import User from '../interfaces/user';
 import account from '../interfaces/account';
-import Token from '../interfaces/Token';
+import Token from '../interfaces/token';
 import Login from '../interfaces/login';
 import config from '../config/config';
 import token from '../middleware/verify';
@@ -44,6 +44,7 @@ const register = async(req : Request, res : Response, next : NextFunction): Prom
         created : new Date(),
         verified : false,
     }
+
     if(checkParameters(User))
         res.status(403).json({
             message : 'One or more fields are empty'
@@ -54,6 +55,7 @@ const register = async(req : Request, res : Response, next : NextFunction): Prom
             message : 'password or email do not match!',
         });
     }
+    
     else {
         if(config.regex.email.test(email) && config.regex.password.test(password) && config.regex.phone.test(phone_number)) {
             bcrypt.hash(password, 10, async (err: Error, hash: string) => {
@@ -81,11 +83,13 @@ const login = async(req : Request, res : Response, next : NextFunction): Promise
         token : null
     };
 
+    //role based authorization strats
+
     if(config.regex.email.test(login.username)) {
         if(await database.getEmail(login.username)) {
             const user = await database.getUserByEmail(login.username) as User;
             if(user !== undefined && bcrypt.compareSync(login.password, user.password)) {
-                const token = jwt.sign({ id : String(user._id), name : user.name, email : user.email, phone_number: user.phone_number }, config.server.token.secret, { expiresIn : 60 * 60 });
+                const token = jwt.sign({ id : String(user._id)}, config.server.token.secret, { expiresIn : 60 * 60 });
                 req.headers['authorization'] = token;
                 login.token = token;
                 return res.status(200).json({
@@ -181,4 +185,9 @@ const removeUser = async(req: Request, res: Response): Promise<Response> => {
     return await database.removeFollower(id, user, res);
 }
 
-export default { verifyAccount, register, login, getAllUsers, resetPassword, reset, updateUserInformation, addUser, removeUser };
+const getUser = async(req: Request, res: Response): Promise<Response> => {
+    await database.getUserById(String(req.query.id));
+    return res.status(200).json({ user :  await database.getUserById(String(req.query.id)) });
+}
+
+export default { verifyAccount, register, login, getAllUsers, resetPassword, reset, updateUserInformation, addUser, removeUser, getUser };

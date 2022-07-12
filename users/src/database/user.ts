@@ -3,7 +3,7 @@ import { MongoClient, ObjectId } from 'mongodb';
 import bcrypt from 'bcryptjs';
 import config from '../config/config';
 import user from '../interfaces/user';
-import token from '../interfaces/Token';
+import token from '../interfaces/token';
 import account from '../interfaces/account';
 import amqp from 'amqplib';
 import jwt from 'jsonwebtoken';
@@ -56,11 +56,17 @@ const addUser = async(req : Request, res: Response, user: user): Promise<Respons
     }
 }
 
+const getUser = async(id: ObjectId): Promise<user> => {
+    const user = await collections.users.find({ _id : id }).toArray() as user[];
+    return user[0];
+}
+
 const addFollower = async(id: ObjectId, token: token, res: Response): Promise<Response> => {
-    if(await collections.users.findOne({follow_list : token.email}))
+    const user = await getUser(token.id);
+    if(await collections.users.findOne({follow_list : user.email}))
         return res.status(401).json('this account already follows this user');
     else  {
-        await collections.users.updateOne({ _id : id }, { $push : {follow_list : token.email }});
+        await collections.users.updateOne({ _id : id }, { $push : {follow_list : user.email }});
         const result = await collections.users.find({_id : id}).toArray() as user[];
         return res.status(200).json({
             status : 'user added to follower list',
@@ -70,9 +76,9 @@ const addFollower = async(id: ObjectId, token: token, res: Response): Promise<Re
 }
 
 const removeFollower = async(id: ObjectId, token: token, res: Response): Promise<Response> => {
-    const result = await collections.users.find({ _id : id }).toArray() as user[];
-    if(result[0].follow_list.includes(token.email)) {
-        await collections.users.updateOne({ _id : id }, { $pull : { follow_list : token.email }});
+    const user = await getUser(token.id);
+    if(user.follow_list.includes(user.email)) {
+        await collections.users.updateOne({ _id : id }, { $pull : { follow_list : user.email }});
         const results = await collections.users.find({_id : id }).toArray() as user[];
         const list = results[0].follow_list;
         return res.status(200).json({

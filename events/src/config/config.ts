@@ -1,7 +1,6 @@
 import dotenv from 'dotenv';
 import path from 'path';
 dotenv.config({path : path.resolve(__dirname, '.env.config')});
-console.log(process.env.port);
 
 const mongo_options = {
     useUnifiedTopology: true,
@@ -35,6 +34,7 @@ const server = {
 
 const config = {
     server,
+
     mongo
 };
 
