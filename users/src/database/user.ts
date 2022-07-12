@@ -108,8 +108,8 @@ const checkEmail = async(email : string): Promise<boolean> => {
     return false;
 }
 
-const getUserById = async(id: string) => {
-    let user = await collections.users.findOne({_id : new ObjectId(id)});
+const getUserById = async(id: ObjectId) => {
+    let user = await collections.users.findOne({ _id : id });
     return user;
 }
 

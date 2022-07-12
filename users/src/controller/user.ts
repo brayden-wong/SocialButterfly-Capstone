@@ -109,8 +109,8 @@ const login = async(req : Request, res : Response, next : NextFunction): Promise
     return res.json();
 }
 
-const getAllUsers = (req : Request, res : Response, next : NextFunction) => {
-    
+const getAllUsers = async(req : Request, res : Response) => {
+    return res.status(200).json(await database.getAllUsers());
 }
 
 const resetPassword = async(req : Request, res : Response): Promise<Response> => {
@@ -153,7 +153,7 @@ const reset = async(req : Request, res : Response): Promise<Response> => {
 
 const updateUserInformation = async(req : Request, res : Response): Promise<Response> => {
     const id = String(req.query.id);
-    const user = await database.getUserById(id);
+    const user = await database.getUserById(new ObjectId(id));
     if(user !== null) {
         let acc :account = {
             name : req.body.name !== undefined ? req.body.name : user.name,
@@ -186,8 +186,7 @@ const removeUser = async(req: Request, res: Response): Promise<Response> => {
 }
 
 const getUser = async(req: Request, res: Response): Promise<Response> => {
-    await database.getUserById(String(req.query.id));
-    return res.status(200).json({ user :  await database.getUserById(String(req.query.id)) });
+    return res.status(200).json({ user :  await database.getUserById(new ObjectId(String(req.query.id))) });
 }
 
 export default { verifyAccount, register, login, getAllUsers, resetPassword, reset, updateUserInformation, addUser, removeUser, getUser };
