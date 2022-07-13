@@ -21,23 +21,6 @@ const eventsThisMonth = async(date: range): Promise<Event[]> => {
     return await collections.event.find({ date : date }).toArray() as Event[];
 }
 
-const sphereIndex = async() => {
-    const result = await collections.event.find({
-    location : {
-            $near : {
-                $geometry : {
-                    type : 'Point',
-                    coordinates : [-111.8761762, 40.7618173]
-                },
-                $maxDistance : 1000 * 1000
-            }
-        }
-    }).toArray() as Event[];
-    //console.log(`these are the results: ${result}`);
-}
-
-//sphereIndex();
-
 const insertCity = async(location: Location) => {
     await collections.geocode.insertOne(location);
 }

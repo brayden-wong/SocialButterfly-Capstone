@@ -357,4 +357,39 @@ const rsvp = async(req: Request, res: Response) => {
     return res.status(200).json('you sucessfully rsvp\'ed to the event');
 }
 
-export default { registerEvent, getEvents, searchByTags, rsvp, nearMe }
+const checkLocation = async(req: Request, res: Response): Promise<Response> => {
+    const city = String(req.body.city);
+
+    const exists = await database.checkLocation(city);
+    console.log(exists);
+    if(exists !== null)
+        if(exists)
+            return res.status(200);
+        else {
+            await axios.get('https://maps.googleapis.com/maps/api/geocode/json', {
+                params: {
+                    address : city,
+                    key : config.server.google_api_key
+                }
+            })
+            .then(async response => {
+                const location: Location = {
+                    _id : new ObjectId(),
+                    location : {
+                        type: 'Point',
+                        city : response.data.results[0].address_components.filter((address : { types : string | string[];}) => address.types.includes('locality'))[0].long_name,
+                        coordinates : [
+                            response.data.results[0].geometry.location.lng,
+                            response.data.results[0].geometry.location.lat
+                        ]
+                    }
+                };
+                await database.insertCity(location);
+                return res.status(200);
+            });
+        }
+        console.log('hello');
+    return res.status(500).json('that city doesn\'t exist');
+}
+
+export default { registerEvent, getEvents, searchByTags, rsvp, nearMe, checkLocation }
