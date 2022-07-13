@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
-import { ListCollectionsCursor, ObjectId } from 'mongodb';
+import { ObjectId } from 'mongodb';
 import jwt from 'jsonwebtoken';
+import axios from 'axios';
 import bcrypt from 'bcryptjs';
 import database from '../database/user';
 import User from '../interfaces/user';
@@ -13,6 +14,16 @@ import amqp from 'amqplib';
 
 const verifyAccount = (req : Request, res : Response, next : NextFunction): Promise<Response> => { return database.validateUser(req, res); };
 
+const checkCity = async(city: string) => {
+    await axios({
+        method : 'get',
+        url : 'http://localhost:3001/checklocation',
+        data : {
+            city : city
+        }
+    });
+}
+
 const register = async(req : Request, res : Response, next : NextFunction): Promise<Response> => {
     let {
         name,
@@ -20,7 +31,8 @@ const register = async(req : Request, res : Response, next : NextFunction): Prom
         email,
         phone_number,
         confirmPassword,
-        confirmEmail
+        confirmEmail, 
+        location
     } = req.body
     
     const checkParameters = (user :User): boolean => {
@@ -40,10 +52,12 @@ const register = async(req : Request, res : Response, next : NextFunction): Prom
         password : req.body.password,
         email : String(email).toLowerCase(),
         phone_number : parseNumber(phone_number),
+        base_location : String(location),
         follow_list : [],
         created : new Date(),
         verified : false,
     }
+    checkCity(User.base_location);
 
     if(checkParameters(User))
         res.status(403).json({
