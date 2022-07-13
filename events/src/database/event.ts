@@ -4,7 +4,6 @@ import config from '../config/config';
 import Event from '../interfaces/event';
 import Location from '../interfaces/location';
 import range from '../interfaces/range';
-import token from '../interfaces/token';
 import user from '../interfaces/user';
 
 const client = new MongoClient(config.mongo.url, config.mongo.options);
