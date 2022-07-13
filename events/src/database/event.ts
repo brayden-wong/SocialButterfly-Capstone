@@ -81,15 +81,36 @@ const nearMe = async(coords: number[]) => {
 const getEvents = async(query: Object[]): Promise<Event[]> => { return await collections.event.aggregate(query).toArray() as Event[]; };
 
 
-const searchByTags = async(filters: string[]): Promise<Event[]> => { 
+const searchByTags = async(city: string, radius : number, filters: string[]): Promise<Event[]> => { 
     const events: Event[] = [];
+    const id = new Set();
+    const location = await cityLocation(city);
+    if(location)
+        for(let i = 0; i < filters.length; i++) {
+            // const results = await collections.event.find({tags : filters[i]}).toArray() as Event[];
+            const results = await collections.event.find({
+                $and : [
+                    { tags : filters[i] },
+                    { location : {
+                        $near : {
+                            $geometry : {
+                                type : 'Point',
+                                coordinates : location.location.coordinates
+                            },
+                            $maxDistance : radius
+                        }
+                    }}
+                ]
+            }).toArray() as Event[];
 
-    for(let i = 0; i < filters.length; i++) {
-        const results = await collections.event.find({tags : filters[i]}).toArray() as Event[];
-        results.forEach((item: Event) => {
-            events.push(item);
-        });
-    }
+            results.forEach((item: Event) => {
+                if(!id.has(item._id.toHexString())) {
+                    events.push(item);
+                    id.add(item._id.toHexString());
+                }
+            });
+
+        }
 
     return events;
 };

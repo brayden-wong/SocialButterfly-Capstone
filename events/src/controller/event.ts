@@ -230,73 +230,29 @@ const registerEvent = async(req : Request, res : Response): Promise<Response> =>
 
 const getEvents = async(req: Request, res: Response)/*: Promise<Response>*/ => {
     const parameters: query = {
-        tags : req.body.tags === (undefined || null) ? undefined : req.body.tags,
-        rangeDates : req.body.date === (undefined || null) ? undefined : req.body.dates,
-        date : req.body.date === (undefined || null) ? undefined : req.body.date,
-        city : req.body.city === (undefined || null) ? undefined : req.body.city,
-        radius : req.body.radius === (undefined || null) ? undefined : req.body.radius
+        tags : req.body.tags === undefined ? null : req.body.tags,
+        rangeDates : req.body.date === undefined ? null : req.body.dates,
+        date : req.body.date === undefined ? null : req.body.date,
+        city : req.body.city === undefined ? null : req.body.city,
+        radius : req.body.radius === undefined ? null : req.body.radius
     };
     
-    let dateBounds: Date[] = [];
-    if(parameters.date !== null)
-        dateBounds = [new Date(parameters.date.getFullYear() + '-' + (parameters.date.getMonth() + 1) + '-' + parameters.date.getDate()),
-            new Date(String(parameters.date.getFullYear()) + '-' + String(parameters.date.getMonth() + 1) + '-' + String(parameters.date.getDate() + 1))
-        ];
-    
+    const query: any = {};
 
-        // if(parameters.name !== null && parameters.tags !== null && parameters.date !== null) {
-        //     const query = [{
-        //         $match : { 
-        //             $and : [
-        //                 { event_name : parameters.name},
-        //                 { tags : parameters.tags },
-        //                 { $and : [
-        //                     { date : { $gte : dateBounds[0] }},
-        //                     { date : { $lt : dateBounds[1] }}
-        //                 ]}
-        //             ]
-        //         }
-        //     }];
-        //     return res.status(200).json(await database.getEvents(query));
-        // } else if(parameters.name !== null && parameters.tags !== null && parameters.date === null) {
-        //     const query = [{
-        //         $match : {
-        //             $and : [
-        //                 { event_name : parameters.name },
-        //                 { tags : parameters.tags }
-        //             ]
-        //         }
-        //     }];
-        //     return res.status(200).json(await database.getEvents(query));
-        // } else if(parameters.name !== null && parameters.tags === null && parameters.date !== null) {
-        //     const query = [{
-        //         $match : {
-        //             $and : [
-        //                 { event_name : parameters.name },
-        //                 { $and : [
-        //                     { date : { $gte : dateBounds[0] }},
-        //                     { date : { $lt : dateBounds[1] }}
-        //                 ]}
-        //             ]
-        //         }
-        //     }];
-        //     return res.status(200).json(await database.getEvents(query));
-        // } else if(parameters.tags === null && parameters.date !== null && parameters.name !== null) {
-        //     const query = [{
-        //         $match : {
-        //             $and : [
-        //                 { tags : parameters.tags },
-        //                 { $and : [
-        //                     { date : { $gte : dateBounds[0] }},
-        //                     { date : { $lt : dateBounds[1] }}
-        //                 ]}
-        //             ]
-        //         }
-        //     }];
-        //     return res.status(200).json(await database.getEvents(query)); 
-        // } else if() {
+    if(parameters.tags !== null)
+        query.tags = parameters.tags;
+    if(parameters.rangeDates !== null) {
+        const gte = { $gte : new Date(parameters.rangeDates[0]) }
+        const lte = { $lte : new Date(parameters.rangeDates[1]) }
+        query.rangeDates = { $and : [
+            { date : gte },
+            { date : lte }
+        ]}
+    }
+    if(parameters.city !== null)
+        query.city = parameters.city;
 
-        // }
+    // res.send(result);
 }
 
 const nearMe = async(req: Request, res: Response) => {
@@ -309,8 +265,32 @@ const nearMe = async(req: Request, res: Response) => {
 }
 
 const searchByTags = async(req: Request, res: Response): Promise<Response> => {
-    if(req.body.tags !== undefined) {
+    const distances: {[key: number]: number } = {
+        10 : 16093.4,
+        25 : 40233.6,
+        50 : 80467.2
+    };
+
+    if(req.body.tags !== undefined && req.body.city !== undefined && req.body.distance !== undefined) {
+        const city = String(req.body.city);
         const filters = req.body.tags;
+        const getRadius = (distance: number): number => {
+            // Object.keys(distances).every(value => {
+            //     console.log(value);
+            //     if(value === String(distance).valueOf())
+            //         //return value
+            //         console.log('hi');
+            // });
+            for(const [k, v] of Object.entries(distances)) {
+                if(k === distance.toString())
+                    return v
+            }
+            return -1;
+        };
+        const radius = getRadius(Number.parseInt(req.body.distance));;
+        if(radius === -1)
+            return res.status(404).json('invalid radius');
+        
         if(filters.length > 5 || filters.length === 0)
             return res.status(500).json({
                 message : 'too many filters or you don\'t have any filters'
@@ -323,8 +303,8 @@ const searchByTags = async(req: Request, res: Response): Promise<Response> => {
         // }];
         // const query = { tags : filters }}
         // return res.status(200).json(await database.searchByTags(query));
-
-        return res.status(200).json(await database.searchByTags(filters));
+        
+        return res.status(200).json(await database.searchByTags(city, radius, filters));
     } else 
         return res.status(500).json('no filters were sent in the body');
 }
