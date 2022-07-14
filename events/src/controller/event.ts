@@ -281,6 +281,7 @@ const searchByTags = async(req: Request, res: Response): Promise<Response> => {
             }
             return -1;
         };
+
         const radius = getRadius(Number.parseInt(req.body.distance));;
         if(radius === -1)
             return res.status(404).json('invalid radius');
@@ -289,14 +290,6 @@ const searchByTags = async(req: Request, res: Response): Promise<Response> => {
             return res.status(500).json({
                 message : 'too many filters or you don\'t have any filters'
             });
-        /* Pipeline query */
-        // const query = [{
-        //     $match : {
-        //         tags : { $all : filters }
-        //     }
-        // }];
-        // const query = { tags : filters }}
-        // return res.status(200).json(await database.searchByTags(query));
         
         return res.status(200).json(await database.searchByTags(city, radius, filters));
     } else 
@@ -304,10 +297,11 @@ const searchByTags = async(req: Request, res: Response): Promise<Response> => {
 }
 
 const rsvp = async(req: Request, res: Response): Promise<Response> => {
-
     const user = await getUser(req);
     const id = new ObjectId(String(req.query.id));
-    return await database.rsvp(res, id, user);
+    if(user.verified)
+        return await database.rsvp(res, id, user);
+    return res.status(500).json('you have to be a verified user to rsvp to events');
 }
 
 const checkLocation = async(req: Request, res: Response): Promise<Response> => {
