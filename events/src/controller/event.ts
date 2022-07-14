@@ -275,12 +275,6 @@ const searchByTags = async(req: Request, res: Response): Promise<Response> => {
         const city = String(req.body.city);
         const filters = req.body.tags;
         const getRadius = (distance: number): number => {
-            // Object.keys(distances).every(value => {
-            //     console.log(value);
-            //     if(value === String(distance).valueOf())
-            //         //return value
-            //         console.log('hi');
-            // });
             for(const [k, v] of Object.entries(distances)) {
                 if(k === distance.toString())
                     return v
@@ -313,7 +307,7 @@ const rsvp = async(req: Request, res: Response): Promise<Response> => {
 
     const user = await getUser(req);
     const id = new ObjectId(String(req.query.id));
-    return await database.rsvp(req, id, user);
+    return await database.rsvp(res, id, user);
 }
 
 const checkLocation = async(req: Request, res: Response): Promise<Response> => {

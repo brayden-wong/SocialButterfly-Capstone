@@ -102,7 +102,7 @@ const searchByTags = async(city: string, radius : number, filters: string[]): Pr
                         }
                     }}
                 ]
-            }).toArray() as Event[];
+            }).project({ city : 0 }).toArray() as Event[];
 
             results.forEach((item: Event) => {
                 if(!id.has(item._id.toHexString())) {
@@ -117,10 +117,15 @@ const searchByTags = async(city: string, radius : number, filters: string[]): Pr
 };
 
 const rsvp = async(res: Response, id: ObjectId, user : user): Promise<Response> => {
-    if(collections.event.find({ _id : id, rsvp : user.email }))
+    if((await collections.event.find({ $and : [ { _id : id }, { rsvp : user.email }]}).toArray()).length > 0) 
         return res.status(500).json('user has already rsvp to the event');
     else {
-        await collections.event.updateOne({_id : id}, { $push : {rsvp : user.email}});
+        const event = await collections.event.findOne({_id : id}) as Event;
+        if(event.available_slots == 0)
+            res.status(500).json('no more available slots')
+        event.rsvp.push(user.email);
+        event.available_slots--;
+        await collections.event.replaceOne({ _id : id }, event);
 
         const send = async() => {
             const url = config.server.queue || 'amqp://localhost';
