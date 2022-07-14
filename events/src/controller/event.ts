@@ -126,12 +126,18 @@ const uploadCity = async(event: Event) => {
 
 const getUser = async(req: Request): Promise<user> => {
     const id = verify.getToken(req);
-    const response = await axios.get(`http://localhost:3000/getUser?id=${id}`)
+    const response = await axios.get(`http://localhost:3000/getUser?id=${id}`);
     const user:user = {
         _id : response.data.user._id,
         name : response.data.user.name,
         email : response.data.user.email,
         phone_number : response.data.user.phone_number,
+        bio : response.data.bio,
+        base_location : {
+            city : response.data.user.base_location.city,
+            coords : response.data.user.base_location.coords,
+            distance : response.data.user.base_location.distance
+        },
         follow_list : response.data.user.follow_list,
         verified : response.data.user.verified
     };
@@ -158,6 +164,8 @@ function setDateTime(date: Date, time: string) {
 
 const registerEvent = async(req : Request, res : Response): Promise<Response> => {
     const user = await getUser(req);
+    if(!user.verified)
+        return res.status(500).json('user is not verified');
     const date = setDateTime(new Date(req.body.date), String(req.body.time));
     
     const isMorning = String(req.body.time).substring(String(req.body.time).indexOf(' ') + 1, String(req.body.time).length);
@@ -171,7 +179,10 @@ const registerEvent = async(req : Request, res : Response): Promise<Response> =>
     let event: Event = {
         _id : new ObjectId(),
         event_name : req.body.event_name,
-        host : user.name,
+        host : {
+            id : user._id.toString(),
+            name : user.name
+        },
         date : new Date(String(req.body.date)),
         time : date.getHours() + ':' + (date.getMinutes() === 0 ? '00' : date.getMinutes()) + ' ' + isMorning,
         tags : tags,
@@ -206,7 +217,7 @@ const registerEvent = async(req : Request, res : Response): Promise<Response> =>
         if(await validateEvent(event)) {
             await database.insertEvent(event);
             return res.status(200).json({
-                message : 'event successfully added',
+                message : '😄 event successfully added',
                 event
             });
         } else {
@@ -222,7 +233,7 @@ const registerEvent = async(req : Request, res : Response): Promise<Response> =>
             await uploadCity(event);
 
         return res.status(200).json({
-            message : 'event successfully added',
+            message : '😄 event successfully added',
             event
         });
     }
@@ -256,11 +267,11 @@ const getEvents = async(req: Request, res: Response)/*: Promise<Response>*/ => {
 }
 
 const nearMe = async(req: Request, res: Response) => {
-    const city = await database.cityLocation('Salt Lake City');
+    const user = await getUser(req);
 
-    if(city !== null)
-        return res.status(200).json({ events : await database.nearMe(city.location.coordinates) });
-    return res.status(200).json(city);
+    if(user.base_location.city !== null)
+        return res.status(200).json(await database.nearMe(user));
+    return res.status(200).json(user.base_location.city);
     
 }
 
@@ -308,7 +319,7 @@ const checkLocation = async(req: Request, res: Response): Promise<Response> => {
     const city = String(req.body.city);
 
     const exists = await database.checkLocation(city);
-    console.log(exists);
+
     if(exists !== null)
         if(exists)
             return res.status(200);
@@ -335,8 +346,16 @@ const checkLocation = async(req: Request, res: Response): Promise<Response> => {
                 return res.status(200);
             });
         }
-        console.log('hello');
     return res.status(500).json('that city doesn\'t exist');
 }
 
-export default { registerEvent, getEvents, searchByTags, rsvp, nearMe, checkLocation }
+const validateLocation = async(req: Request, res: Response)/*: Promise<Response>*/ => {
+
+    let user = req.body.user as user;
+
+    user = await database.validateLocation(user);
+
+    return res.status(200).json(user);
+}
+
+export default { registerEvent, getEvents, searchByTags, rsvp, nearMe, checkLocation, validateLocation }

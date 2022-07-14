@@ -3,7 +3,10 @@ import { ObjectId } from 'mongodb';
 export default interface Event {
     _id : ObjectId,
     event_name : string,
-    host: string,
+    host: {
+        id : string,
+        name : string
+    },
     date : Date,
     time : string,
     tags : string[],
@@ -15,6 +18,6 @@ export default interface Event {
     },
     rsvp : string[],
     available_slots : number,
-    organizations : [string] | [null],
+    organizations : string[] | null,
     online : boolean
 };

@@ -10,5 +10,6 @@ router.get('/search', controller.searchByTags);
 router.post('/rsvp', verify.verify, controller.rsvp);
 router.get('/near', controller.nearMe);
 router.get('/checklocation', controller.checkLocation);
+router.post('/validatelocation', controller.validateLocation);
 
 export = router;

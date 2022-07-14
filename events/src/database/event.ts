@@ -1,7 +1,7 @@
-import axios from 'axios';
 import { Response } from 'express';
 import { MongoClient, ObjectId } from 'mongodb';
 import config from '../config/config';
+import axios from 'axios';
 import Event from '../interfaces/event';
 import Location from '../interfaces/location';
 import range from '../interfaces/range';
@@ -65,18 +65,19 @@ const cityLocation = async(city: string) => {
     return null;
 }
 
-const nearMe = async(coords: number[]) => {
-    const result = await collections.event.find({
+const nearMe = async(user: user) => {
+    const results = await collections.event.find({
         location : {
                 $near : {
                     $geometry : {
                         type : 'Point',
-                        coordinates : coords
+                        coordinates : user.base_location.coords
                     },
                     $maxDistance : 1000 * 1000
                 }
             }
         }).toArray() as Event[];
+    return results
 }
 
 const getEvents = async(query: Object[]): Promise<Event[]> => { return await collections.event.aggregate(query).toArray() as Event[]; };
@@ -121,9 +122,14 @@ const rsvp = async(res: Response, id: ObjectId, user : user): Promise<Response> 
     else {
         const event = await collections.event.findOne({_id : id}) as Event;
         if(event.available_slots == 0)
-            res.status(500).json('no more available slots')
-        event.rsvp.push(user.email);
+            return res.status(500).json('no more available slots')
+        else if(event.available_slots == -1)
+            event.rsvp.push(user.email);
+        else {
+            event.rsvp.push(user.email);
         event.available_slots--;
+        }
+
         await collections.event.replaceOne({ _id : id }, event);
 
         const send = async() => {
@@ -147,7 +153,41 @@ const rsvp = async(res: Response, id: ObjectId, user : user): Promise<Response> 
 
         return res.status(200).json('user has been added to the email rsvp list');
     }
-
 }
 
-export default { checkLocation, insertEvent, insertCity, eventsThisMonth, doTagsMatch, getEvents, searchByTags, rsvp, cityLocation, nearMe };
+const validateLocation = async(user: user): Promise<user> => {
+    const result = await collections.geocode.findOne({ 'location.city' : user.base_location.city }) as Location;
+
+    if(result !== null) {
+        user.base_location.coords = result.location.coordinates;
+        return user;
+    } else {
+        await axios.get('https://maps.googleapis.com/maps/api/geocode/json', {
+            params: {
+                address : user.base_location.city,
+                key : config.server.google_api_key
+            }
+        })
+            .then(async response => {
+                const location: Location = {
+                    _id : new ObjectId(),
+                    location : {
+                        type: 'Point',
+                        city : response.data.results[0].address_components.filter((address : { types : string | string[];}) => address.types.includes('locality'))[0].long_name,
+                        coordinates : [
+                            response.data.results[0].geometry.location.lng,
+                            response.data.results[0].geometry.location.lat
+                        ]
+                    }
+                };
+
+                user.base_location.city = location.location.city;
+                user.base_location.coords = location.location.coordinates;
+                await insertCity(location);
+                return user;
+            });
+        return user;
+    }
+}
+
+export default { checkLocation, insertEvent, insertCity, validateLocation, eventsThisMonth, doTagsMatch, getEvents, searchByTags, rsvp, cityLocation, nearMe };
