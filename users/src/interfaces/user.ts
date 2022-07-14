@@ -9,6 +9,7 @@ export default interface user {
     bio : string | null,
     base_location : {
         city : string,
+        coords : number[],
         distance : number
     }
     follow_list : string[];

@@ -14,14 +14,18 @@ import amqp from 'amqplib';
 
 const verifyAccount = (req : Request, res : Response, next : NextFunction): Promise<Response> => { return database.validateUser(req, res); };
 
-const checkCity = async(city: string) => {
-    await axios({
-        method : 'get',
-        url : 'http://localhost:3001/checklocation',
+const validateLocation = async(user: User): Promise<User> => {
+    const response = await axios({
+        method : 'post',
+        url : 'http://localhost:3001/validatelocation',
         data : {
-            city : city
+            user
         }
     });
+
+    return response.data as User;
+
+
 }
 
 const register = async(req : Request, res : Response, next : NextFunction): Promise<Response> => {
@@ -51,9 +55,9 @@ const register = async(req : Request, res : Response, next : NextFunction): Prom
         return miles * 1609.344;
     }
 
-    const date = new Date()
+    const date = new Date();
 
-    const User: User = {
+    let User: User = {
         _id : new ObjectId(),
         name : String(name).toLowerCase(),
         password : String(req.body.password),
@@ -62,6 +66,7 @@ const register = async(req : Request, res : Response, next : NextFunction): Prom
         bio : String(bio),
         base_location : {
             city : String(location),
+            coords : [],
             distance : getMeters(50)
         },
         follow_list : [],
@@ -69,12 +74,14 @@ const register = async(req : Request, res : Response, next : NextFunction): Prom
         verified : false,
     };
 
-    checkCity(User.base_location.city);
+    User = await validateLocation(User);
+    User._id = new ObjectId(User._id);
 
     if(checkParameters(User))
         res.status(403).json({
             message : 'one or more fields are empty'
         });
+
 
     if(password !== confirmPassword && email !== confirmEmail) { 
         return res.status(401).json({
