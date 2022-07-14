@@ -1,10 +1,12 @@
 import axios from 'axios';
+import { Response } from 'express';
 import { MongoClient, ObjectId } from 'mongodb';
 import config from '../config/config';
 import Event from '../interfaces/event';
 import Location from '../interfaces/location';
 import range from '../interfaces/range';
 import user from '../interfaces/user';
+import amqp from 'amqplib';
 
 const client = new MongoClient(config.mongo.url, config.mongo.options);
 client.connect();
@@ -75,7 +77,6 @@ const nearMe = async(coords: number[]) => {
                 }
             }
         }).toArray() as Event[];
-        
 }
 
 const getEvents = async(query: Object[]): Promise<Event[]> => { return await collections.event.aggregate(query).toArray() as Event[]; };
@@ -115,10 +116,34 @@ const searchByTags = async(city: string, radius : number, filters: string[]): Pr
     return events;
 };
 
-const rsvp = async(id: ObjectId, user : user) => {
-    await collections.event.updateOne({_id : id}, { $push : {rsvp : user.email}});
+const rsvp = async(res: Response, id: ObjectId, user : user): Promise<Response> => {
+    if(collections.event.find({ _id : id, rsvp : user.email }))
+        return res.status(500).json('user has already rsvp to the event');
+    else {
+        await collections.event.updateOne({_id : id}, { $push : {rsvp : user.email}});
 
-    console.log(await collections.event.findOne({_id : id}));
+        const send = async() => {
+            const url = config.server.queue || 'amqp://localhost';
+                const connection = await amqp.connect(url);
+                const channel = await connection.createChannel();
+                await channel.assertQueue('register account', {durable : true});
+            
+                let options = {
+                    from : '',
+                    to : user.email,
+                    subject : 'Social Butterfly Account Activation',
+                    html : 'Hello, <br> Thank you for rsvp\'ing for the event!<br>'
+                    + 'You will receive a reminder email 1 week before the event.<br><br>'
+                    + '©SocialButterfly'
+                };
+    
+                channel.sendToQueue('rsvp', Buffer.from(JSON.stringify(options)));
+        }
+        await send();
+
+        return res.status(200).json('user has been added to the email rsvp list');
+    }
+
 }
 
 export default { checkLocation, insertEvent, insertCity, eventsThisMonth, doTagsMatch, getEvents, searchByTags, rsvp, cityLocation, nearMe };

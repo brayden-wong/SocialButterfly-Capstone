@@ -309,32 +309,11 @@ const searchByTags = async(req: Request, res: Response): Promise<Response> => {
         return res.status(500).json('no filters were sent in the body');
 }
 
-const rsvp = async(req: Request, res: Response) => {
+const rsvp = async(req: Request, res: Response): Promise<Response> => {
 
     const user = await getUser(req);
     const id = new ObjectId(String(req.query.id));
-    await database.rsvp(id, user);
-
-    const send = async() => {
-        const url = config.server.queue || 'amqp://localhost';
-            const connection = await amqp.connect(url);
-            const channel = await connection.createChannel();
-            await channel.assertQueue('register account', {durable : true});
-        
-            let options = {
-                from : '',
-                to : user.email,
-                subject : 'Social Butterfly Account Activation',
-                html : 'Hello, <br> Thank you for rsvp\'ing for the event!<br>'
-                + 'You will receive a reminder email 1 week before the event.<br><br>'
-                + '©SocialButterfly'
-            };
-
-            channel.sendToQueue('rsvp', Buffer.from(JSON.stringify(options)));
-    }
-    await send();
-
-    return res.status(200).json('you sucessfully rsvp\'ed to the event');
+    return await database.rsvp(id, user);
 }
 
 const checkLocation = async(req: Request, res: Response): Promise<Response> => {
