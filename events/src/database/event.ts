@@ -75,7 +75,7 @@ const nearMe = async(coords: number[]) => {
                 }
             }
         }).toArray() as Event[];
-    return result;
+        
 }
 
 const getEvents = async(query: Object[]): Promise<Event[]> => { return await collections.event.aggregate(query).toArray() as Event[]; };
