@@ -88,7 +88,6 @@ const searchByTags = async(city: string, radius : number, filters: string[]): Pr
     const location = await cityLocation(city);
     if(location)
         for(let i = 0; i < filters.length; i++) {
-            // const results = await collections.event.find({tags : filters[i]}).toArray() as Event[];
             const results = await collections.event.find({
                 $and : [
                     { tags : filters[i] },
@@ -102,7 +101,7 @@ const searchByTags = async(city: string, radius : number, filters: string[]): Pr
                         }
                     }}
                 ]
-            }).project({ city : 0 }).toArray() as Event[];
+            }).project({ city : 0, location : 0, rsvp : 0 }).toArray() as Event[];
 
             results.forEach((item: Event) => {
                 if(!id.has(item._id.toHexString())) {
