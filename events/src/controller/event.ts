@@ -313,7 +313,7 @@ const rsvp = async(req: Request, res: Response): Promise<Response> => {
 
     const user = await getUser(req);
     const id = new ObjectId(String(req.query.id));
-    return await database.rsvp(id, user);
+    return await database.rsvp(req, id, user);
 }
 
 const checkLocation = async(req: Request, res: Response): Promise<Response> => {
