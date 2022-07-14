@@ -6,7 +6,11 @@ export default interface user {
     password : string,
     email : string,
     phone_number : string,
-    base_location : string,
+    bio : string | null,
+    base_location : {
+        city : string,
+        distance : number
+    }
     follow_list : string[];
     created : Date,
     verified : boolean

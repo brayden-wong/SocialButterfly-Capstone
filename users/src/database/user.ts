@@ -49,7 +49,7 @@ const addUser = async(req : Request, res: Response, user: user): Promise<Respons
             channel.sendToQueue('register account', Buffer.from(JSON.stringify(options)));
         };
 
-        await sendToQueue(req);
+        //await sendToQueue(req);
         return res.status(200).json({
             user
         });
@@ -137,7 +137,7 @@ const resetPassword = async(req : Request, res : Response): Promise<Response> =>
 
 // updates the user's account with specific data that was updated, everything else will be not be updated
 const updateAccount = async(id : string, account : account) => { 
-    await collections.users.updateOne({_id : new ObjectId(id)}, {$set : { name  : account.name, email : account.email, phone_number : account.phone_number }}); 
+    await collections.users.replaceOne({_id : new ObjectId(id)}, account); 
 }
 
 const removeExpiredTokens = async() => {
@@ -166,6 +166,7 @@ const containsToken = async(token : string) => {
 }
 
 // returns all users from the database
-const getAllUsers = async() => { return await collections.users.find({}).toArray() };
+const getAllUsers = async() => { return await collections.users.find({}).project({_id : 0, password : 0, email : 0,
+    phone_number : 0, 'base_location.distance' : 0, verified : 0 }).toArray() };
 
 export default { addUser, validateUser, getAllUsers, getEmail: checkEmail, getUserByEmail, getUserById, updateAccount, resetPassword, containsToken, checkExpiredTokens: removeExpiredTokens, addFollower, removeFollower };

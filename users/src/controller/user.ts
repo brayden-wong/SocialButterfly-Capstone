@@ -29,6 +29,7 @@ const register = async(req : Request, res : Response, next : NextFunction): Prom
         name,
         password,
         email,
+        bio,
         phone_number,
         confirmPassword,
         confirmEmail, 
@@ -46,31 +47,40 @@ const register = async(req : Request, res : Response, next : NextFunction): Prom
         return number.replace('(', '').replace(')', '').replace('-', '');
     }
 
+    const getMeters = (miles: number) => {
+        return miles * 1609.344;
+    }
+
+    const date = new Date()
+
     const User: User = {
         _id : new ObjectId(),
         name : String(name).toLowerCase(),
-        password : req.body.password,
+        password : String(req.body.password),
         email : String(email).toLowerCase(),
         phone_number : parseNumber(phone_number),
-        base_location : String(location),
+        bio : String(bio),
+        base_location : {
+            city : String(location),
+            distance : getMeters(50)
+        },
         follow_list : [],
-        created : new Date(),
+        created : new Date(date.getFullYear(), date.getMonth(), date.getDate()),
         verified : false,
-    }
-    checkCity(User.base_location);
+    };
+
+    checkCity(User.base_location.city);
 
     if(checkParameters(User))
         res.status(403).json({
-            message : 'One or more fields are empty'
+            message : 'one or more fields are empty'
         });
 
     if(password !== confirmPassword && email !== confirmEmail) { 
         return res.status(401).json({
             message : 'password or email do not match!',
         });
-    }
-    
-    else {
+    } else {
         if(config.regex.email.test(email) && config.regex.password.test(password) && config.regex.phone.test(phone_number)) {
             bcrypt.hash(password, 10, async (err: Error, hash: string) => {
                 if (err) {
@@ -90,25 +100,22 @@ const register = async(req : Request, res : Response, next : NextFunction): Prom
     }
 }
 
-const login = async(req : Request, res : Response, next : NextFunction): Promise<Response> => {
+const login = async(req : Request, res : Response): Promise<Response> => {
     let login: Login = {
-        username : req.body.username,
-        password : req.body.password,
-        token : null
+        username : String(req.body.username),
+        password : String(req.body.password),
     };
 
     //role based authorization strats
-
     if(config.regex.email.test(login.username)) {
         if(await database.getEmail(login.username)) {
             const user = await database.getUserByEmail(login.username) as User;
             if(user !== undefined && bcrypt.compareSync(login.password, user.password)) {
                 const token = jwt.sign({ id : String(user._id)}, config.server.token.secret, { expiresIn : 60 * 60 });
                 req.headers['authorization'] = token;
-                login.token = token;
                 return res.status(200).json({
                     message : 'signed in',
-                    token : login.token
+                    token : token
                 });
             }
         } else 
@@ -172,10 +179,15 @@ const updateUserInformation = async(req : Request, res : Response): Promise<Resp
         let acc :account = {
             name : req.body.name !== undefined ? req.body.name : user.name,
             email : req.body.email !== undefined ? req.body.email : user.email,
-            phone_number : req.body.phone_number !== undefined ? req.body.phone_number : user.phone_number
+            phone_number : req.body.phone_number !== undefined ? req.body.phone_number : user.phone_number,
+            bio : req.body.bio !== undefined ? req.body.bio : user.bio,
+            base_location : {
+                city : req.body.city !== undefined ? req.body.city : user.base_location.city,
+                distance : req.body.distance !== undefined ? req.body.distance : user.base_location.distance
+            }
         };
 
-        database.updateAccount(id, acc);
+        await database.updateAccount(id, acc);
         return res.status(200).json({
             message : 'profile was successfully updated'
         });
@@ -185,7 +197,7 @@ const updateUserInformation = async(req : Request, res : Response): Promise<Resp
     });
 }
 
-const addUser = async(req: Request, res: Response): Promise<Response> => {
+const addFollower = async(req: Request, res: Response): Promise<Response> => {
     const id = new ObjectId(String(req.query.id));
     const user: Token = token.getToken(req);
 
@@ -193,7 +205,7 @@ const addUser = async(req: Request, res: Response): Promise<Response> => {
 }
 
 // removes the user from the follower list
-const removeUser = async(req: Request, res: Response): Promise<Response> => {
+const removeFollower = async(req: Request, res: Response): Promise<Response> => {
     const id = new ObjectId(String(req.query.id));
     const user: Token = token.getToken(req);
     return await database.removeFollower(id, user, res);
@@ -203,4 +215,4 @@ const getUser = async(req: Request, res: Response): Promise<Response> => {
     return res.status(200).json({ user :  await database.getUserById(new ObjectId(String(req.query.id))) });
 }
 
-export default { verifyAccount, register, login, getAllUsers, resetPassword, reset, updateUserInformation, addUser, removeUser, getUser };
+export default { verifyAccount, register, login, getAllUsers, resetPassword, reset, updateUserInformation, addUser: addFollower, removeUser: removeFollower, getUser };
