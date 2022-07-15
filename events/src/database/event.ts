@@ -83,7 +83,7 @@ const nearMe = async(user: user) => {
 const getEvents = async(query: Object[]): Promise<Event[]> => { return await collections.event.aggregate(query).toArray() as Event[]; };
 
 
-const searchByTags = async(city: string, radius : number, filters: string[]): Promise<Event[]> => { 
+const searchByTags = async(res: Response, city: string, radius : number, filters: string[]):Promise<Response> => { 
     const events: Event[] = [];
     const id = new Set();
     const location = await cityLocation(city);
@@ -112,8 +112,9 @@ const searchByTags = async(city: string, radius : number, filters: string[]): Pr
             });
 
         }
-
-    return events;
+    if(events.length === 0)
+        return res.status(200).json('no events near you with these tags');
+    return res.status(200).json(events);
 };
 
 const rsvp = async(res: Response, id: ObjectId, user : user): Promise<Response> => {

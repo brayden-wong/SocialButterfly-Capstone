@@ -286,10 +286,9 @@ const searchByTags = async(req: Request, res: Response): Promise<Response> => {
         const city = String(req.body.city);
         const filters = req.body.tags;
         const getRadius = (distance: number): number => {
-            for(const [k, v] of Object.entries(distances)) {
+            for(const [k, v] of Object.entries(distances)) 
                 if(k === distance.toString())
                     return v
-            }
             return -1;
         };
 
@@ -302,7 +301,7 @@ const searchByTags = async(req: Request, res: Response): Promise<Response> => {
                 message : 'too many filters or you don\'t have any filters'
             });
         
-        return res.status(200).json(await database.searchByTags(city, radius, filters));
+        return res.status(200).json(await database.searchByTags(res, city, radius, filters));
     } else 
         return res.status(500).json('no filters were sent in the body');
 }
@@ -349,7 +348,7 @@ const checkLocation = async(req: Request, res: Response): Promise<Response> => {
     return res.status(500).json('that city doesn\'t exist');
 }
 
-const validateLocation = async(req: Request, res: Response)/*: Promise<Response>*/ => {
+const validateLocation = async(req: Request, res: Response): Promise<Response> => {
 
     let user = req.body.user as user;
 
