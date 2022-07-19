@@ -21,11 +21,9 @@ app.use((req, res, next) => {
 
 setInterval(async () => { 
     let date = new Date(); 
-    if(date.getMinutes() % 15 === 0)
-        console.log('running');
-    if((date.getHours() === 0)) {
-        //await database.sendRSVP(new Date(date.getFullYear(), date.getMonth(), date.getDate() + 7));
-        console.log('pretend running event');
+
+    if((date.getHours() === 2)) {
+        database.sendRSVP(new Date(date.getFullYear(), date.getMonth(), date.getDate() + 7));
     }
 }, 60000);
 

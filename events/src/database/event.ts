@@ -1,4 +1,4 @@
-import e, { Response } from 'express';
+import { Response } from 'express';
 import { MongoClient, ObjectId } from 'mongodb';
 import config from '../config/config';
 import axios from 'axios';
@@ -20,13 +20,15 @@ const collections = {
 
 // indexed query for searching for cities that are not case sensitive
 //{ $text : { $search : "SalT lake CiTY", $caseSensitive: false }}
+// collections.event.createIndex({ location : '2dsphere' });
+// collections.geocode.createIndex({ location : '2dsphere'});
 
 collections.geocode.createIndex({ 'location.city' : "text" });
 
 const sendRSVP = async (date : Date) => {
     const temp = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
 
-    const events = await collections.event.find({$and : [{ date : { $gte : date }}, { date : { $lt : temp }}]}).project({ rsvp : 1 }).toArray() as Event[];
+    const events = await collections.event.find({$and : [{ date : { $gte : date }}, { date : { $lt : temp }}]}).project({ event_name : 1, date : 1, time : 1, rsvp : 1 }).toArray() as Event[];
 
     const send = async(events: Event[]) => {
         const url = config.server.queue || 'amqp://localhost';
@@ -43,12 +45,13 @@ const sendRSVP = async (date : Date) => {
 
         for(let i = 0; i < events.length; i++) {
             for(let k = 0; k < events[i].rsvp.length; k++) {
-                const response = await axios.get('localhost:3000/user-by-email', {
-                    params : {
+                const response = await axios.get('http://localhost:3000/user-by-email', {
+                    data : {
                         email : events[i].rsvp[k]
                     }
                 });
                 const user = response.data as user;
+
                 let options = {
                     from : '',
                     to : events[i].rsvp[k],
@@ -89,7 +92,6 @@ const checkLocation = async(city : string): Promise<boolean> => {
 }
 
 const doTagsMatch = async(event: Event): Promise<Boolean> => {
-    console.log(event);
     const results = await collections.event.find({ 
         location : {
             $near : {
