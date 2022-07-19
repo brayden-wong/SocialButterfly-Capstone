@@ -13,7 +13,7 @@ const consumeAccount = async() => {
         let connection = await amqp.connect(url);
         let channel = await connection.createChannel();
         channel.consume('register account', data => {
-        if(data != null) {
+        if(data !== null) {
             let options = JSON.parse(data.content.toString());
             options.from = config.username;
             const service =  process.env.service || 'gmail';
@@ -45,7 +45,7 @@ const consumeResetPassword = async() => {
         let channel = await connection.createChannel();
 
         channel.consume('reset password', data => {
-            if(data != null) {
+            if(data !== null) {
                 let options = JSON.parse(data.content.toString());
                 options.from = config.username;
                 
@@ -75,7 +75,7 @@ const consumeRSVP = async() => {
     let channel = await connection.createChannel();
 
     channel.consume('rsvp', data => {
-        if(data != null) {
+        if(data !== null) {
             let options = JSON.parse(data.content.toString());
             options.from = config.username;
             
@@ -96,7 +96,34 @@ const consumeRSVP = async() => {
     });
 }
 
+const consumeReminder = async() => {
+    const url = config.queue || 'amqp://localhost';
+    let connection = await amqp.connect(url);
+    let channel = await connection.createChannel();
+
+    channel.consume('event reminder', data => {
+        if(data !== null) {
+            let options = JSON.parse(data.content.toString());
+            options.from = config.username;
+
+            const transporter = mailer.createTransport({
+                service : process.env.service,
+                port : 587,
+                secure : false,
+                requireTLS : true,
+                auth : {
+                    user : config.username,
+                    pass : config.password
+                },
+                logger : true
+            });
+            transporter.sendMail(options);
+        }
+    })
+}
+
 try {
+    consumeReminder();
     consumeResetPassword()
     consumeAccount();
     consumeRSVP();
