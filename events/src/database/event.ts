@@ -1,4 +1,4 @@
-import { Response } from 'express';
+import e, { Response } from 'express';
 import { MongoClient, ObjectId } from 'mongodb';
 import config from '../config/config';
 import axios from 'axios';
@@ -17,6 +17,56 @@ const collections = {
     geocode : db.collection(String(config.mongo.collections.geocode)),
     past_event : db.collection(String(config.mongo.collections.past_events))
 };
+
+// indexed query for searching for cities that are not case sensitive
+//{ $text : { $search : "SalT lake CiTY", $caseSensitive: false }}
+
+collections.geocode.createIndex({ 'location.city' : "text" });
+
+const sendRSVP = async (date : Date) => {
+    const temp = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
+
+    const events = await collections.event.find({$and : [{ date : { $gte : date }}, { date : { $lt : temp }}]}).project({ rsvp : 1 }).toArray() as Event[];
+
+    const send = async(events: Event[]) => {
+        const url = config.server.queue || 'amqp://localhost';
+        const connection = await amqp.connect(url);
+        const channel = await connection.createChannel();
+        await channel.assertQueue('register account', {durable : true});
+
+        const emails: string[] = [];
+        events.forEach( event => {
+        event.rsvp.forEach(email => {
+                emails.push(email);
+            });
+        });
+
+        for(let i = 0; i < events.length; i++) {
+            for(let k = 0; k < events[i].rsvp.length; k++) {
+                const response = await axios.get('localhost:3000/user-by-email', {
+                    params : {
+                        email : events[i].rsvp[k]
+                    }
+                });
+                const user = response.data as user;
+                let options = {
+                    from : '',
+                    to : events[i].rsvp[k],
+                    subject : 'Social Butterfly Account Activation',
+                    html : `Hello ${user.name}, <br> Thank you for signing up early for the event!  Just a reminder, the event you signed up for is here in 1 week<br>`
+                    + `Event: ${events[i].event_name}<br>Date: ${events[i].date}<br>Time: ${events[i].time}`
+                    + '<br><br>'
+                    + '©SocialButterfly'
+                };
+                channel.sendToQueue('event reminder', Buffer.from(JSON.stringify(options)));
+            }    
+        }   
+    }
+
+    if(events !== null)
+        await send(events);
+};
+
 
 const eventsThisMonth = async(date: range): Promise<Event[]> => {
     return await collections.event.find({ date : date }).toArray() as Event[];
@@ -59,7 +109,7 @@ const doTagsMatch = async(event: Event): Promise<Boolean> => {
 }
 
 const cityLocation = async(city: string) => {
-    const location = await collections.geocode.findOne({ 'location.city' : city });
+    const location = await collections.geocode.findOne({ 'location.city' : new RegExp(city, 'i')});
     if(location !== null)
         return location as Location;
     return null;
@@ -67,7 +117,9 @@ const cityLocation = async(city: string) => {
 
 const nearMe = async(user: user) => {
     const results = await collections.event.find({
-        location : {
+        $and : [
+            { available_slots : { $gt : 0},
+            location : {
                 $near : {
                     $geometry : {
                         type : 'Point',
@@ -75,12 +127,13 @@ const nearMe = async(user: user) => {
                     },
                     $maxDistance : 1000 * 1000
                 }
+                }
             }
-        }).toArray() as Event[];
+        ]}).sort({ date : 1 }).toArray() as Event[];
     return results
 }
 
-const getEvents = async(query: Object[]): Promise<Event[]> => { return await collections.event.aggregate(query).toArray() as Event[]; };
+const getEvents = async(query: Object[]): Promise<Event[]> => { return await collections.event.aggregate(query).project({ location : 0, city : 0, rsvp : 0, dist : 0}).toArray() as Event[]; };
 
 
 const searchByTags = async(res: Response, city: string, radius : number, filters: string[]):Promise<Response> => { 
@@ -135,20 +188,20 @@ const rsvp = async(res: Response, id: ObjectId, user : user): Promise<Response> 
 
         const send = async() => {
             const url = config.server.queue || 'amqp://localhost';
-                const connection = await amqp.connect(url);
-                const channel = await connection.createChannel();
-                await channel.assertQueue('register account', {durable : true});
-            
-                let options = {
-                    from : '',
-                    to : user.email,
-                    subject : 'Social Butterfly Account Activation',
-                    html : 'Hello, <br> Thank you for rsvp\'ing for the event!<br>'
-                    + 'You will receive a reminder email 1 week before the event.<br><br>'
-                    + '©SocialButterfly'
-                };
-    
-                channel.sendToQueue('rsvp', Buffer.from(JSON.stringify(options)));
+            const connection = await amqp.connect(url);
+            const channel = await connection.createChannel();
+            await channel.assertQueue('register account', {durable : true});
+        
+            let options = {
+                from : '',
+                to : user.email,
+                subject : 'Social Butterfly Account Activation',
+                html : 'Hello, <br> Thank you for rsvp\'ing for the event!<br>'
+                + 'You will receive a reminder email 1 week before the event.<br><br>'
+                + '©SocialButterfly'
+            };
+
+            channel.sendToQueue('rsvp', Buffer.from(JSON.stringify(options)));
         }
         await send();
 
@@ -191,4 +244,4 @@ const validateLocation = async(user: user): Promise<user> => {
     }
 }
 
-export default { checkLocation, insertEvent, insertCity, validateLocation, eventsThisMonth, doTagsMatch, getEvents, searchByTags, rsvp, cityLocation, nearMe };
+export default { checkLocation, insertEvent, insertCity, validateLocation, eventsThisMonth, doTagsMatch, getEvents, sendRSVP, searchByTags, rsvp, cityLocation, nearMe };

@@ -2,6 +2,7 @@ import express from 'express';
 import routes from './routes/event';
 import bodyParser from 'body-parser';
 import config from './config/config';
+import database from '../src/database/event';
 
 const app = express();
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -17,6 +18,16 @@ app.use((req, res, next) => {
     }
     next();
 });
+
+setInterval(async () => { 
+    let date = new Date(); 
+    if(date.getMinutes() % 15 === 0)
+        console.log('running');
+    if((date.getHours() === 0)) {
+        //await database.sendRSVP(new Date(date.getFullYear(), date.getMonth(), date.getDate() + 7));
+        console.log('pretend running event');
+    }
+}, 60000);
 
 app.use('/', routes);
 

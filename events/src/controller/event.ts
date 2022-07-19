@@ -3,15 +3,16 @@ import { ObjectId } from 'mongodb';
 import Event from '../interfaces/event';
 import axios from 'axios';
 import Location from '../interfaces/location';
-import amqp from 'amqplib';
 import config from '../config/config';
-import token from '../interfaces/token'
 import database from '../database/event';
 import range from '../interfaces/range';
 import query from '../interfaces/query';
 import user from '../interfaces/user';
 import verify from '../middleware/verify';
 
+const getMeters = (miles: number) => {
+    return miles * 1609.344;
+}
 
 const getMonth = async(date: Date) => {
     const month = date.getMonth() + 1;
@@ -240,29 +241,77 @@ const registerEvent = async(req : Request, res : Response): Promise<Response> =>
 }
 
 const getEvents = async(req: Request, res: Response)/*: Promise<Response>*/ => {
+    const temp = new Date();
     const parameters: query = {
-        tags : req.body.tags === undefined ? null : req.body.tags,
-        rangeDates : req.body.date === undefined ? null : req.body.dates,
-        date : req.body.date === undefined ? null : req.body.date,
-        city : req.body.city === undefined ? null : req.body.city,
-        radius : req.body.radius === undefined ? null : req.body.radius
-    };
-    
-    const query: any = {};
+        tags : req.body.tags === undefined ? [] : req.body.tags,
+        dates : req.body.dates === undefined ? [new Date(temp.getFullYear(), temp.getMonth(), temp.getDate())] : req.body.dates.length === 2 ? req.body.dates : [new Date(req.body.dates)], //req.body.dates.length === 2 ? req.body.dates : req.body.dates,
+        city : String(req.body.city),
+        radius : req.body.radius === undefined ? 50 : Number.parseInt(req.body.radius)
+    }; 
 
-    if(parameters.tags !== null)
-        query.tags = parameters.tags;
-    if(parameters.rangeDates !== null) {
-        const gte = { $gte : new Date(parameters.rangeDates[0]) }
-        const lte = { $lte : new Date(parameters.rangeDates[1]) }
-        query.rangeDates = { $and : [
-            { date : gte },
-            { date : lte }
-        ]}
+    const city = await database.cityLocation(parameters.city);
+
+    if(city !== null) {
+        const query = [{
+            $geoNear : {
+                near : { type : 'Point', coordinates : [city.location.coordinates[0], city.location.coordinates[1]]},
+                query : { $and : [
+                    parameters.tags.length === 0 ? { tags : { $exists : true, $not : { $size : 0 }}} : {tags : { $in : parameters.tags }},
+                    parameters.dates.length === 2 ? { $and : [
+                        { date : { $gte : new Date(parameters.dates[0])}},
+                        { date : { $lte : new Date(parameters.dates[1])}}
+                    ]} : { $and : [
+                        { date : { $gte : parameters.dates[0]}},
+                        { date : { $lt : new Date(parameters.dates[0].getFullYear(), parameters.dates[0].getMonth(), parameters.dates[0].getDate() + 1)}}
+                    ]},
+                    { city : new RegExp(parameters.city, 'i')},
+                    
+                    
+                ]},
+                maxDistance : getMeters(parameters.radius),
+                distanceField : 'dist.calculated',
+                spherical : true
+            }
+        }];
+
+        return res.status(200).json(await database.getEvents(query));
     }
-    if(parameters.city !== null)
-        query.city = parameters.city;
+    
 
+    // const query = [{
+    //     $match : {
+    //         // tags : req.body.tags === undefined ? null
+    //             // $and : [{ 
+    //             //     tags : req.body.tags === undefined ? null : { $in : req.body.tags}},
+    //             //     { $and : [
+    //             //         { date : req.body.dates === undefined ? req.body.date === undefined ? { $gte : new Date(temp.getFullYear(), temp.getMonth(), temp.getDate())} : req.body.date : 
+    //             //             { $gte : new Date(req.body.dates[0])}},
+    //             //         { date : req.body.dates === undefined ? req.body.date === undefined ? { $lt : new Date(temp.getFullYear(), temp.getMonth(), temp.getDate())} : req.body.date : 
+    //             //             { $lte : new Date(req.body.dates[1])}}
+    //             //     ],
+    //             //     city : req.body.city === undefined ? null : req.body.city
+    //             // },
+    //             $or : [
+    //                 { $and : [{tags : {$ne : null}, }]
+    //             ]
+    //         ]}
+    // }];
+
+    // if(parameters.tags !== null)
+    //     query.tags = parameters.tags;
+    // if(parameters.rangeDates !== null) {
+    //     const gte = { $gte : new Date(parameters.rangeDates[0]) }
+    //     const lte = { $lte : new Date(parameters.rangeDates[1]) }
+    //     console.log(gte, lte);
+    //     query.rangeDates = { 
+    //         $and : [
+    //             { date : gte },
+    //             { date : lte }
+    //         ]
+            
+    //     }
+    // }
+    
     // res.send(result);
 }
 
