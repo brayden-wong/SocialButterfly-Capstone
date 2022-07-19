@@ -49,7 +49,7 @@ const addUser = async(req : Request, res: Response, user: user): Promise<Respons
             channel.sendToQueue('register account', Buffer.from(JSON.stringify(options)));
         };
 
-        //await sendToQueue(req);
+        await sendToQueue(req);
         return res.status(200).json({
             user
         });
