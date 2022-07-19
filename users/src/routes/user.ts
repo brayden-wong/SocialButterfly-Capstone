@@ -7,6 +7,7 @@ const router = express.Router();
 router.get('/verify', controller.verifyAccount);
 router.get('/getUser', controller.getUser);
 router.get('/users', controller.getAllUsers);
+router.get('/user-by-email', controller.userByEmail);
 router.post('/login', controller.login);
 router.post('/register', controller.register);
 router.post('/reset', controller.resetPassword);

@@ -222,4 +222,8 @@ const getUser = async(req: Request, res: Response): Promise<Response> => {
     return res.status(200).json({ user :  await database.getUserById(new ObjectId(String(req.query.id))) });
 }
 
-export default { verifyAccount, register, login, getAllUsers, resetPassword, reset, updateUserInformation, addUser: addFollower, removeUser: removeFollower, getUser };
+const userByEmail = async(req: Request, res: Response): Promise<Response> => {
+    return res.status(200).json(await database.getUserByEmail(req.body.email));
+}
+
+export default { verifyAccount, register, login, getAllUsers, resetPassword, reset, updateUserInformation, addUser: addFollower, removeUser: removeFollower, getUser, userByEmail };

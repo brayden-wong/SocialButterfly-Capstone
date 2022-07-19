@@ -27,13 +27,11 @@ const mongoOptions = {
     retryWrites: true
 };
 
-const MONGO_USERNAME = process.env.MONGO_USERNAME || 'superuser';
-const MONGO_PASSWORD = process.env.MONGO_USERNAME || 'supersecretpassword1';
+const MONGO_USERNAME = process.env.MONGO_USERNAME;
+const MONGO_PASSWORD = process.env.MONGO_PASSWORD;
 const MONGO_HOST = process.env.MONGO_URL || `localhost`;
 const MONGO_DATABASE = process.env.MONGO_DATABASE;
 const MONGO_USERS = process.env.MONGO_USERS || 'Users';
-const MONGO_GEOCODES = process.env.MONGO_GEOCODES || 'Geocodes';
-const MONGO_EVENTS = process.env.MONGO_EVENTS || 'Events';
 
 const mongo = {
     host: MONGO_HOST,
@@ -46,8 +44,7 @@ const mongo = {
         tokens : process.env.MONGO_JSON_WEB_TOKENS
     },
 
-    //url: `mongodb+srv://${MONGO_USERNAME}:${MONGO_PASSWORD}@${MONGO_HOST}`
-    url: 'mongodb://localhost/SocialButterfly'
+    url: `mongodb+srv://${MONGO_USERNAME}:${MONGO_PASSWORD}@cluster0.qavvp4s.mongodb.net/${MONGO_HOST}/${MONGO_DATABASE}`
 };
 
 const regex = {
