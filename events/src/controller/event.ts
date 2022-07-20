@@ -274,6 +274,21 @@ const getEvents = async(req: Request, res: Response)/*: Promise<Response>*/ => {
             }
         }];
 
+        // const query = [{ 
+        //     $match : {
+        //         $and : [
+        //             parameters.tags.length === 0 ? { tags : { $exists : true, $not : { $size : 0 }}} : { tags : { $in : parameters.tags }},
+        //             parameters.dates.length === 2 ? { $and : [
+        //                 { date : { $gte : new Date(parameters.dates[0])}},
+        //                 { date : { $lte : new Date(parameters.dates[1])}}
+        //             ]} : { $and : [
+        //                 { date : { $gte : parameters.dates[0]}},
+        //                 { date : { $lt : new Date(parameters.dates[0].getFullYear(), parameters.dates[0].getMonth(), parameters.dates[0].getDate() + 1)}}
+        //             ]},
+        //             { city : new RegExp(parameters.city, 'i')}
+        //         ]
+        //     }
+        // }];
         return res.status(200).json(await database.getEvents(query));
     }
     
