@@ -1,0 +1,49 @@
+networks:
+  social-butterfly:
+    external: false
+
+services:
+  users:
+    build:
+      context: ./users/
+      dockerfile: dockerfile
+    env_file:
+      - ./users/src/config/.env.config
+    networks:
+      - social-butterfly
+    ports:
+      - 3000:3000
+    restart: always
+  
+  events:
+    build:
+      context: ./events/
+      dockerfile: dockerfile
+    env_file:
+      - ./events/src/config/.env.config
+    networks:
+      - social-butterfly
+    ports:
+      - 3001:3001
+    restart: always
+
+  consumer:
+    build:
+      context: ./consumer
+      dockerfile: dockerfile
+    env_file:
+      - ./consumer/src/config/.env.config
+    ports:
+      - 3002:3002
+    networks:
+      - social-butterfly
+    restart: always
+
+  rabbitmq:
+    image: rabbitmq:3
+    networks:
+      - commerce_net
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+    restart: always
