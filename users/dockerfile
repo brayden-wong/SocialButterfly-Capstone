@@ -1,4 +1,4 @@
-FROM Node:latest as ts-compiler
+FROM node:latest as ts-compiler
 
 WORKDIR /users
 

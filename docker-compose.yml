@@ -42,7 +42,7 @@ services:
   rabbitmq:
     image: rabbitmq:3
     networks:
-      - commerce_net
+      - social-butterfly
     ports:
       - '5672:5672'
       - '15672:15672'
