@@ -2,7 +2,7 @@ import express from 'express';
 import routes from './routes/event';
 import bodyParser from 'body-parser';
 import config from './config/config';
-import database from '../src/database/event';
+import database from './database/event';
 
 const app = express();
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -22,7 +22,7 @@ app.use((req, res, next) => {
 setInterval(async () => { 
     let date = new Date(); 
 
-    if((date.getHours() === 2)) {
+    if((date.getHours() === 7)) {
         database.sendRSVP(new Date(date.getFullYear(), date.getMonth(), date.getDate() + 7));
     }
 }, 60000);
