@@ -71,6 +71,7 @@ const register = async(req : Request, res : Response, next : NextFunction): Prom
             distance : getMeters(50)
         },
         follow_list : [],
+        follower_count : 0,
         created : new Date(date.getFullYear(), date.getMonth(), date.getDate()),
         verified : false,
     };

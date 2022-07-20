@@ -13,6 +13,7 @@ export default interface user {
         distance : number
     }
     follow_list : string[];
+    follower_count : number,
     created : Date,
     verified : boolean
 };
