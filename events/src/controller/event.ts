@@ -140,6 +140,7 @@ const getUser = async(req: Request): Promise<user> => {
             distance : response.data.user.base_location.distance
         },
         follow_list : response.data.user.follow_list,
+        follower_count : response.data.user.follower_count,
         verified : response.data.user.verified
     };
     return user;

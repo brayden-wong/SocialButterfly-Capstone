@@ -172,7 +172,7 @@ const searchByTags = async(res: Response, city: string, radius : number, filters
 };
 
 const rsvp = async(res: Response, id: ObjectId, user : user): Promise<Response> => {
-    if((await collections.event.find({ $and : [ { _id : id }, { rsvp : user.email }]}).toArray()).length > 0) 
+    if((await collections.event.find({ $and : [ { _id : id }, { rsvp : { $in : user.email }}]}).toArray()).length > 0) 
         return res.status(500).json('user has already rsvp to the event');
     else {
         const event = await collections.event.findOne({_id : id}) as Event;
