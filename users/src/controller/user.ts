@@ -11,21 +11,26 @@ import Login from '../interfaces/login';
 import config from '../config/config';
 import token from '../middleware/verify';
 import amqp from 'amqplib';
+import * as fs from 'fs';
+import path from 'path';
+import { parse } from 'csv-parse';
+import user from '../database/user';
 
 const verifyAccount = (req : Request, res : Response, next : NextFunction): Promise<Response> => { return database.validateUser(req, res); };
 
 const validateLocation = async(user: User): Promise<User> => {
-    const response = await axios({
-        method : 'post',
-        url : 'http://localhost:3001/validatelocation',
-        data : {
-            user
-        }
-    });
-
-    return response.data as User;
-
-
+    console.log('validating location');
+    // else {
+        const response = await axios({
+            method : 'post',
+            url : 'http://localhost:3001/validatelocation',
+            data : {
+                user
+            }
+        });
+        console.log(response.data as User);
+        return response.data as User;
+    // }
 }
 
 const register = async(req : Request, res : Response, next : NextFunction): Promise<Response> => {
@@ -89,15 +94,9 @@ const register = async(req : Request, res : Response, next : NextFunction): Prom
         });
     } else {
         if(config.regex.email.test(email) && config.regex.password.test(password) && config.regex.phone.test(phone_number)) {
-            bcrypt.hash(password, 10, async (err: Error, hash: string) => {
-                if (err) {
-                    return res.status(401).json({
-                        message: 'Could not generate hash',
-                        error: err
-                    });
-                }
-                User.password = hash;
-            });
+            const hash = await bcrypt.hash(password, 10);
+            User.password = hash;
+            console.log(User);
             return await database.addUser(req, res, User);
         } else {
             return res.status(500).json({
@@ -211,7 +210,6 @@ const addFollower = async(req: Request, res: Response): Promise<Response> => {
     return await database.addFollower(id, user, res);
 }
 
-// removes the user from the follower list
 const removeFollower = async(req: Request, res: Response): Promise<Response> => {
     const id = new ObjectId(String(req.query.id));
     const user: Token = token.getToken(req);

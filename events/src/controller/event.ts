@@ -291,43 +291,6 @@ const getEvents = async(req: Request, res: Response)/*: Promise<Response>*/ => {
         // }];
         return res.status(200).json(await database.getEvents(query));
     }
-    
-
-    // const query = [{
-    //     $match : {
-    //         // tags : req.body.tags === undefined ? null
-    //             // $and : [{ 
-    //             //     tags : req.body.tags === undefined ? null : { $in : req.body.tags}},
-    //             //     { $and : [
-    //             //         { date : req.body.dates === undefined ? req.body.date === undefined ? { $gte : new Date(temp.getFullYear(), temp.getMonth(), temp.getDate())} : req.body.date : 
-    //             //             { $gte : new Date(req.body.dates[0])}},
-    //             //         { date : req.body.dates === undefined ? req.body.date === undefined ? { $lt : new Date(temp.getFullYear(), temp.getMonth(), temp.getDate())} : req.body.date : 
-    //             //             { $lte : new Date(req.body.dates[1])}}
-    //             //     ],
-    //             //     city : req.body.city === undefined ? null : req.body.city
-    //             // },
-    //             $or : [
-    //                 { $and : [{tags : {$ne : null}, }]
-    //             ]
-    //         ]}
-    // }];
-
-    // if(parameters.tags !== null)
-    //     query.tags = parameters.tags;
-    // if(parameters.rangeDates !== null) {
-    //     const gte = { $gte : new Date(parameters.rangeDates[0]) }
-    //     const lte = { $lte : new Date(parameters.rangeDates[1]) }
-    //     console.log(gte, lte);
-    //     query.rangeDates = { 
-    //         $and : [
-    //             { date : gte },
-    //             { date : lte }
-    //         ]
-            
-    //     }
-    // }
-    
-    // res.send(result);
 }
 
 const nearMe = async(req: Request, res: Response) => {
@@ -385,7 +348,7 @@ const checkLocation = async(req: Request, res: Response): Promise<Response> => {
 
     if(exists !== null)
         if(exists)
-            return res.status(200);
+            return res.status(200).json(true);
         else {
             await axios.get('https://maps.googleapis.com/maps/api/geocode/json', {
                 params: {
@@ -406,10 +369,10 @@ const checkLocation = async(req: Request, res: Response): Promise<Response> => {
                     }
                 };
                 await database.insertCity(location);
-                return res.status(200);
+                return res.status(200).json(false);
             });
         }
-    return res.status(500).json('that city doesn\'t exist');
+    return res.status(500);
 }
 
 const validateLocation = async(req: Request, res: Response): Promise<Response> => {

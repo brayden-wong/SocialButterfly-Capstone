@@ -70,7 +70,6 @@ const sendRSVP = async (date : Date) => {
         await send(events);
 };
 
-
 const eventsThisMonth = async(date: range): Promise<Event[]> => {
     return await collections.event.find({ date : date }).toArray() as Event[];
 }
@@ -212,7 +211,7 @@ const rsvp = async(res: Response, id: ObjectId, user : user): Promise<Response> 
 }
 
 const validateLocation = async(user: user): Promise<user> => {
-    const result = await collections.geocode.findOne({ 'location.city' : user.base_location.city }) as Location;
+    const result = await collections.geocode.findOne({ 'location.city' : new RegExp(user.base_location.city, 'i') }) as Location;
 
     if(result !== null) {
         user.base_location.coords = result.location.coordinates;
@@ -229,7 +228,8 @@ const validateLocation = async(user: user): Promise<user> => {
                     _id : new ObjectId(),
                     location : {
                         type: 'Point',
-                        city : response.data.results[0].address_components.filter((address : { types : string | string[];}) => address.types.includes('locality'))[0].long_name,
+                        // city : response.data.results[0].address_components.filter((address : { types : string | string[];}) => address.types.includes('locality'))[0].long_name,
+                        city : response.data.results[0].address_components[0].long_name,
                         coordinates : [
                             response.data.results[0].geometry.location.lng,
                             response.data.results[0].geometry.location.lat
