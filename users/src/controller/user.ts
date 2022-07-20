@@ -11,10 +11,10 @@ import Login from '../interfaces/login';
 import config from '../config/config';
 import token from '../middleware/verify';
 import amqp from 'amqplib';
-import * as fs from 'fs';
-import path from 'path';
-import { parse } from 'csv-parse';
-import user from '../database/user';
+
+const parseNumber = (number : string) => {
+    return number.replace('(', '').replace(')', '').replace('-', '').replace('-', '');
+}
 
 const verifyAccount = (req : Request, res : Response, next : NextFunction): Promise<Response> => { return database.validateUser(req, res); };
 
@@ -50,10 +50,6 @@ const register = async(req : Request, res : Response, next : NextFunction): Prom
             if(value === undefined) return true;
         });
         return false;
-    }
-
-    const parseNumber = (number : string) => {
-        return number.replace('(', '').replace(')', '').replace('-', '');
     }
 
     const getMeters = (miles: number) => {
@@ -126,14 +122,25 @@ const login = async(req : Request, res : Response): Promise<Response> => {
             }
         } else 
             return res.status(401).json('A wrong username or password was wrong. Please try again'); 
-        
-        
     } else if(config.regex.phone.test(login.username)) {
-
+        if(await database.getPhone(parseNumber(login.username))) {
+            const user = await database.getPhone(parseNumber(login.username)) as User;
+            console.log('user', user);
+            console.log(bcrypt.compareSync(login.password, user.password));
+            if(user !== undefined && bcrypt.compareSync(login.password, user.password)) {
+                const token = jwt.sign({ id : String(user._id)}, config.server.token.secret, { expiresIn : 60 * 60 });
+                req.headers['authorization'] = token;
+                return res.status(200).json({
+                    message : 'signed in',
+                    token : token
+                });
+            }
+        } else 
+            return res.status(401).json('A wrong username or password was wrong. Please try again'); 
     } else {
         return res.status(401).json('A wrong username or password was wrong. Please try again');
     }
-    return res.json();
+    return res.json('hi');
 }
 
 const getAllUsers = async(req : Request, res : Response) => {

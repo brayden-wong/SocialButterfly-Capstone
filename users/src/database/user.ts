@@ -165,8 +165,12 @@ const containsToken = async(token : string) => {
     return true;
 }
 
+const getPhone = async(phone: string): Promise<user> => { 
+    return await collections.users.findOne({phone_number : phone }) as user;
+}
+
 // returns all users from the database
 const getAllUsers = async() => { return await collections.users.find({}).project({_id : 0, password : 0, email : 0,
     phone_number : 0, 'base_location.distance' : 0, verified : 0 }).toArray() };
 
-export default { addUser, validateUser, getAllUsers, getEmail: checkEmail, getUserByEmail, getUserById, updateAccount, resetPassword, containsToken, checkExpiredTokens: removeExpiredTokens, addFollower, removeFollower };
+export default { getPhone, addUser, validateUser, getAllUsers, getEmail: checkEmail, getUserByEmail, getUserById, updateAccount, resetPassword, containsToken, checkExpiredTokens: removeExpiredTokens, addFollower, removeFollower };
