@@ -11,5 +11,6 @@ router.post('/rsvp', verify.verify, controller.rsvp);
 router.get('/near', controller.nearMe);
 router.get('/checklocation', controller.checkLocation);
 router.post('/validatelocation', controller.validateLocation);
+// router.get('/massimport', controller.massImport);
 
 export = router;

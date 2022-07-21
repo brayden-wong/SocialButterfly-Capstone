@@ -246,4 +246,12 @@ const validateLocation = async(user: user): Promise<user> => {
     }
 }
 
-export default { checkLocation, insertEvent, insertCity, validateLocation, eventsThisMonth, doTagsMatch, getEvents, sendRSVP, searchByTags, rsvp, cityLocation, nearMe };
+const getLocations = async() => {
+    return await collections.geocode.find().toArray() as Location[];
+}
+
+const insertManyEvents = (events: Event[]) => {
+    collections.event.insertMany(events);
+}
+
+export default { insertManyEvents, getLocations, checkLocation, insertEvent, insertCity, validateLocation, eventsThisMonth, doTagsMatch, getEvents, sendRSVP, searchByTags, rsvp, cityLocation, nearMe };
