@@ -173,4 +173,9 @@ const getPhone = async(phone: string): Promise<user> => {
 const getAllUsers = async() => { return await collections.users.find({}).project({ password : 0, email : 0,
     phone_number : 0, 'base_location.distance' : 0, verified : 0, follow_list : 0, created : 0 }).toArray() };
 
-export default { getPhone, addUser, validateUser, getAllUsers, getEmail: checkEmail, getUserByEmail, getUserById, updateAccount, resetPassword, containsToken, checkExpiredTokens: removeExpiredTokens, addFollower, removeFollower };
+
+// const getUsers = async(req: Request, res: Response) => {
+//     return res.status(200).json(await collections.users.find().project({ _id : 1, name : 1 }).toArray() as user[])
+// }
+
+export default { /*getUsers,*/ getPhone, addUser, validateUser, getAllUsers, getEmail: checkEmail, getUserByEmail, getUserById, updateAccount, resetPassword, containsToken, checkExpiredTokens: removeExpiredTokens, addFollower, removeFollower };

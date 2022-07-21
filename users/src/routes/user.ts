@@ -1,9 +1,11 @@
 import express from 'express';
 import controller from '../controller/user';
 import verify from '../middleware/verify';
+// import database from '../database/user';
 
 const router = express.Router();
 
+// router.get('/users', database.getUsers);
 router.get('/verify', controller.verifyAccount);
 router.get('/getUser', controller.getUser);
 router.get('/users', controller.getAllUsers);
