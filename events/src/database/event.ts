@@ -28,13 +28,16 @@ collections.geocode.createIndex({ 'location.city' : "text" });
 const sendRSVP = async (date : Date) => {
     const temp = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
 
-    const events = await collections.event.find({$and : [{ date : { $gte : date }}, { date : { $lt : temp }}]}).project({ event_name : 1, date : 1, time : 1, rsvp : 1 }).toArray() as Event[];
+    const events = await collections.event.find({
+        $and : [
+            { date : { $gte : date }},
+            { date : { $lt : temp }}]}).project({ event_name : 1, date : 1, time : 1, rsvp : 1 }).toArray() as Event[];
 
     const send = async(events: Event[]) => {
         const url = config.server.queue || 'amqp://localhost';
         const connection = await amqp.connect(url);
         const channel = await connection.createChannel();
-        await channel.assertQueue('register account', {durable : true});
+        await channel.assertQueue('rsvp', {durable : true});
 
         const emails: string[] = [];
         events.forEach( event => {
@@ -55,7 +58,7 @@ const sendRSVP = async (date : Date) => {
                 let options = {
                     from : '',
                     to : events[i].rsvp[k],
-                    subject : 'Social Butterfly Account Activation',
+                    subject : 'Social Butterfly RSVP Notification',
                     html : `Hello ${user.name}, <br> Thank you for signing up early for the event!  Just a reminder, the event you signed up for is here in 1 week<br>`
                     + `Event: ${events[i].event_name}<br>Date: ${events[i].date}<br>Time: ${events[i].time}`
                     + '<br><br>'
@@ -126,7 +129,7 @@ const nearMe = async(user: user) => {
                         type : 'Point',
                         coordinates : user.base_location.coords
                     },
-                    $maxDistance : 1000 * 1000
+                    $maxDistance : user.base_location.distance
                 }
                 }
             }
@@ -172,7 +175,7 @@ const searchByTags = async(res: Response, city: string, radius : number, filters
 };
 
 const rsvp = async(res: Response, id: ObjectId, user : user): Promise<Response> => {
-    if((await collections.event.find({ $and : [ { _id : id }, { rsvp : { $in : user.email }}]}).toArray()).length > 0) 
+    if((await collections.event.find({ $and : [ { _id : id }, { rsvp : { $in : [user.email] }}]}).toArray()).length > 0) 
         return res.status(500).json('user has already rsvp to the event');
     else {
         const event = await collections.event.findOne({_id : id}) as Event;

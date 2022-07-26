@@ -37,13 +37,18 @@ services:
       - 3002:3002
     networks:
       - social-butterfly
+    depends_on:
+      - rabbitmq
     restart: always
 
   rabbitmq:
-    image: rabbitmq:3
+    image: rabbitmq:3-management
     networks:
       - social-butterfly
     ports:
       - '5672:5672'
-      - '15672:15672'
+      - '8080:15672'
+    volumes:
+      - ~/.docker-conf/rabbitmq/data/:/var/lib/rabbitmq/
+      - ~/.docker-conf/rabbitmq/log/:/var/log/rabbitmq
     restart: always

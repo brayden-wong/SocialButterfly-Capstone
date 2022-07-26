@@ -5,131 +5,92 @@ import mailer from 'nodemailer';
 import config from './config/config';
 
 const app = express();
+const createChannels = async() => {
+    const url = String(config.queue);
+    const connection = await amqp.connect(url);
+    const channel = await connection.createChannel();
 
-
-const consumeAccount = async() => {
-    try {
-        const url = config.queue || 'amqp://localhost';
-        let connection = await amqp.connect(url);
-        let channel = await connection.createChannel();
-        channel.consume('register account', data => {
-        if(data !== null) {
-            let options = JSON.parse(data.content.toString());
-            options.from = config.username;
-            const service =  process.env.service || 'gmail';
-            
-            const transporter = mailer.createTransport({
-                service: service,
-                port: 587,
-                secure: false,
-                requireTLS: true,
-                auth: {
-                    user: config.username,
-                    pass: config.password,
-                },
-                logger: true
-            });
-
-            transporter.sendMail(options);
-        }
-    });
-    } catch (error) {
-        console.log(error);
-    }
+    await channel.assertQueue('register account');
+    await channel.assertQueue('event reminder');
+    await channel.assertQueue('reset password');
+    await channel.assertQueue('rsvp');
 };
 
-const consumeResetPassword = async() => {
-    try {
-        const url = config.queue || 'amqp://localhost';
-        let connection = await amqp.connect(url);
-        let channel = await connection.createChannel();
+setTimeout(() => {
+    createChannels()
+}, 5000);
 
-        channel.consume('reset password', data => {
-            if(data !== null) {
-                let options = JSON.parse(data.content.toString());
-                options.from = config.username;
-                
-                const transporter = mailer.createTransport({
-                    service : process.env.service,
-                    port : 587,
-                    secure : false,
-                    requireTLS : true,
-                    auth : {
-                        user : config.username,
-                        pass : config.password
-                    },
-                    logger : true
-                });
+let url = 'amqp://rabbitmq';
+let connection: Connection;
+let channel: Channel;
 
-                transporter.sendMail(options);
-            }
+const createConnection = async(url: string, connection: Connection, channel: Channel) => {
+    connection = await amqp.connect(url);
+    channel = await connection.createChannel();
+    return channel;
+}
+
+const sendEmail = (data : amqp.ConsumeMessage | null) => {
+    if(data !== null) {
+        let options = JSON.parse(data.content.toString());
+        options.from = config.username;
+        const service =  process.env.service || 'gmail';
+        
+        const transporter = mailer.createTransport({
+            service: service,
+            port: 587,
+            secure: false,
+            requireTLS: true,
+            auth: {
+                user: config.username,
+                pass: config.password,
+            },
+            logger: true
         });
-    } catch (error) {
-        console.log(error);
-    }
+
+        transporter.sendMail(options);
+    } else return;
+}
+
+const consumeAccount = async() => {
+    channel = await createConnection(url, connection, channel);
+    channel.consume('register account', data => {
+        sendEmail(data);
+    });
+}
+
+const consumeResetPassword = async() => {
+    channel = await createConnection(url, connection, channel);
+    channel.consume('reset password', data => {
+        sendEmail(data);
+    });
 };
 
 const consumeRSVP = async() => {
-    const url = config.queue || 'amqp://localhost';
-    let connection = await amqp.connect(url);
-    let channel = await connection.createChannel();
-
+    channel = await createConnection(url, connection, channel);
     channel.consume('rsvp', data => {
-        if(data !== null) {
-            let options = JSON.parse(data.content.toString());
-            options.from = config.username;
-            
-            const transporter = mailer.createTransport({
-                service : process.env.service,
-                port : 587,
-                secure : false,
-                requireTLS : true,
-                auth : {
-                    user : config.username,
-                    pass : config.password
-                },
-                logger : true
-            });
-
-            transporter.sendMail(options);
-        }
+        sendEmail(data);
     });
 }
 
 const consumeReminder = async() => {
-    const url = config.queue || 'amqp://localhost';
-    let connection = await amqp.connect(url);
-    let channel = await connection.createChannel();
-
+    channel = await createConnection(url, connection, channel);
     channel.consume('event reminder', data => {
-        if(data !== null) {
-            let options = JSON.parse(data.content.toString());
-            options.from = config.username;
-
-            const transporter = mailer.createTransport({
-                service : process.env.service,
-                port : 587,
-                secure : false,
-                requireTLS : true,
-                auth : {
-                    user : config.username,
-                    pass : config.password
-                },
-                logger : true
-            });
-            transporter.sendMail(options);
-        }
+        sendEmail(data);
     })
 }
 
-try {
-    consumeReminder();
-    consumeResetPassword()
+setTimeout(() => {
     consumeAccount();
-    consumeRSVP();
-} catch (error) {
-    console.log('no messages to consume');
-}
-
+    setTimeout(() => {
+        consumeRSVP();
+        setTimeout(() => {
+            consumeReminder();
+            setTimeout(() => {
+                consumeResetPassword();
+            }, 15000);
+        }, 15000);
+    }, 15000);
+}, 15000);
 
 app.listen(config.port);

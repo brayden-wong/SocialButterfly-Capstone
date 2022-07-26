@@ -23,12 +23,11 @@ const validateLocation = async(user: User): Promise<User> => {
     // else {
         const response = await axios({
             method : 'post',
-            url : 'http://localhost:3001/validatelocation',
+            url : 'http://events:3001/validatelocation',
             data : {
                 user
             }
         });
-        console.log(response.data as User);
         return response.data as User;
     // }
 }
@@ -93,7 +92,7 @@ const register = async(req : Request, res : Response, next : NextFunction): Prom
         if(config.regex.email.test(email) && config.regex.password.test(password) && config.regex.phone.test(phone_number)) {
             const hash = await bcrypt.hash(password, 10);
             User.password = hash;
-            console.log(User);
+            console.log('inserting user into database');
             return await database.addUser(req, res, User);
         } else {
             return res.status(500).json({
