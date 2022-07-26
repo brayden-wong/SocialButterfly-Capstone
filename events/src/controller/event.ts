@@ -131,7 +131,7 @@ const uploadCity = async(event: Event) => {
 
 const getUser = async(req: Request): Promise<user> => {
     const id = verify.getToken(req);
-    const response = await axios.get(`http://localhost:3000/getUser?id=${id}`);
+    const response = await axios.get(`http://users:3000/getUser?id=${id}`);
     const user:user = {
         _id : response.data.user._id,
         name : response.data.user.name,
@@ -391,7 +391,7 @@ const validateLocation = async(req: Request, res: Response): Promise<Response> =
 
 const massImport = async(req: Request, res: Response) => {
     
-    const response = await axios.get('http://localhost:3000/users');
+    const response = await axios.get('http://users:3000/users');
     const locations = await database.getLocations(); 
     
     const users:user[] = response.data;

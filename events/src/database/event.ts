@@ -45,7 +45,7 @@ const sendRSVP = async (date : Date) => {
 
         for(let i = 0; i < events.length; i++) {
             for(let k = 0; k < events[i].rsvp.length; k++) {
-                const response = await axios.get('http://localhost:3000/user-by-email', {
+                const response = await axios.get('http://users:3000/user-by-email', {
                     data : {
                         email : events[i].rsvp[k]
                     }
