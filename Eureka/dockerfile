@@ -1,9 +1,9 @@
-FROM openjdk:11-alpine
-
-RUN apk --no-cache add curl
+FROM openjdk:11
 
 ARG JAR_FILE=target/*.jar
 
 COPY ${JAR_FILE} app.jar
+
+EXPOSE 8761
 
 ENTRYPOINT ["java", "-jar", "./app.jar"]
