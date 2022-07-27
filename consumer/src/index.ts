@@ -88,9 +88,9 @@ setTimeout(() => {
             consumeReminder();
             setTimeout(() => {
                 consumeResetPassword();
-            }, 15000);
-        }, 15000);
-    }, 15000);
-}, 15000);
+            }, 10000);
+        }, 10000);
+    }, 10000);
+}, 10000);
 
 app.listen(config.port);
