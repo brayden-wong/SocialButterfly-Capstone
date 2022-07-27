@@ -41,13 +41,15 @@ services:
       - rabbitmq
     restart: always
 
-  # gateway:
-  #   image: ssilverman23/e-commerce-apigateway:latest
-  #   networks:
-  #     - social-butterfly
-  #   ports:
-  #     - '8080:8080'
-  #   restart: always
+  gateway:
+    build:
+      context: ./gateway/
+      dockerfile: dockerfile
+    networks:
+      - social-butterfly
+    ports:
+      - '8080:8080'
+    restart: always
   
   eureka:
     build:
