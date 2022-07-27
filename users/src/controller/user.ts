@@ -11,6 +11,13 @@ import Login from '../interfaces/login';
 import config from '../config/config';
 import token from '../middleware/verify';
 import amqp from 'amqplib';
+import eureka from '../eureka-helper';
+import { Eureka } from 'eureka-js-client';
+let client: Eureka;
+
+setTimeout(() => {
+    client = eureka.registerService('user-api', Number.parseInt(config.server.port));
+}, 30000);
 
 const parseNumber = (number : string) => {
     return number.replace('(', '').replace(')', '').replace('-', '').replace('-', '');
@@ -23,7 +30,9 @@ const validateLocation = async(user: User): Promise<User> => {
     // else {
         const response = await axios({
             method : 'post',
-            url : 'http://events:3001/validatelocation',
+            // url : 'http://events:3001/validatelocation',
+            // @ts-ignore
+            url : `http://${client.getInstancesByAppId('EVENT-API')[0].hostName}:${client.getInstancesByAppId('EVENT-API')[0].port['$']}/validatelocation`,
             data : {
                 user
             }

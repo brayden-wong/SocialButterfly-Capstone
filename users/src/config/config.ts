@@ -10,7 +10,7 @@ const SERVER_TOKEN_SECRET = process.env.SERVER_TOKEN_SECRET || 'superencryptedse
 
 const server = {
     hostname : SERVER_HOST,
-    port : SERVER_PORT,
+    port : String(SERVER_PORT),
     token : {
         expireTime : SERVER_TOKEN_EXPIRETIME,
         issuer : SERVER_TOKEN_ISSUER,

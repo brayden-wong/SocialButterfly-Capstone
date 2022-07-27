@@ -9,6 +9,13 @@ import range from '../interfaces/range';
 import query from '../interfaces/query';
 import user from '../interfaces/user';
 import verify from '../middleware/verify';
+import eureka from '../eureka-helper';
+import { Eureka } from 'eureka-js-client';
+let client: Eureka;
+
+setTimeout(() => {
+    client = eureka.registerService('event-api', Number.parseInt(config.server.port));
+}, 30000);
 
 import fs from 'fs';
 import path from 'path';
