@@ -13,11 +13,12 @@ import token from '../middleware/verify';
 import amqp from 'amqplib';
 import eureka from '../eureka-helper';
 import { Eureka } from 'eureka-js-client';
+import { request } from '../request.helper';
 let client: Eureka;
 
 setTimeout(() => {
-    client = eureka.registerService('user-api', Number.parseInt(config.server.port));
-}, 30000);
+    client = eureka.registerService('users', Number.parseInt(config.server.port));
+}, 15000);
 
 const parseNumber = (number : string) => {
     return number.replace('(', '').replace(')', '').replace('-', '').replace('-', '');
@@ -26,19 +27,10 @@ const parseNumber = (number : string) => {
 const verifyAccount = (req : Request, res : Response, next : NextFunction): Promise<Response> => { return database.validateUser(req, res); };
 
 const validateLocation = async(user: User): Promise<User> => {
-    console.log('validating location');
-    // else {
-        const response = await axios({
-            method : 'post',
-            // url : 'http://events:3001/validatelocation',
-            // @ts-ignore
-            url : `http://${client.getInstancesByAppId('EVENT-API')[0].hostName}:${client.getInstancesByAppId('EVENT-API')[0].port['$']}/validatelocation`,
-            data : {
-                user
-            }
-        });
-        return response.data as User;
-    // }
+    const response = await request('http://gateway:8080/events/validatelocation', 'post', undefined, { user : user });
+    if(response === null)
+        return user;
+    return response.data as User;
 }
 
 const register = async(req : Request, res : Response, next : NextFunction): Promise<Response> => {
@@ -101,7 +93,6 @@ const register = async(req : Request, res : Response, next : NextFunction): Prom
         if(config.regex.email.test(email) && config.regex.password.test(password) && config.regex.phone.test(phone_number)) {
             const hash = await bcrypt.hash(password, 10);
             User.password = hash;
-            console.log('inserting user into database');
             return await database.addUser(req, res, User);
         } else {
             return res.status(500).json({
@@ -146,10 +137,9 @@ const login = async(req : Request, res : Response): Promise<Response> => {
             }
         } else 
             return res.status(401).json('A wrong username or password was wrong. Please try again'); 
-    } else {
-        return res.status(401).json('A wrong username or password was wrong. Please try again');
-    }
-    return res.json('hi');
+    } 
+    return res.status(401).json('A wrong username or password was wrong. Please try again');
+    
 }
 
 const getAllUsers = async(req : Request, res : Response) => {
@@ -197,26 +187,28 @@ const reset = async(req : Request, res : Response): Promise<Response> => {
 const updateUserInformation = async(req : Request, res : Response): Promise<Response> => {
     const id = String(req.query.id);
     const user = await database.getUserById(new ObjectId(id));
-    if(user !== null) {
-        let acc :account = {
-            name : req.body.name !== undefined ? req.body.name : user.name,
-            email : req.body.email !== undefined ? req.body.email : user.email,
-            phone_number : req.body.phone_number !== undefined ? req.body.phone_number : user.phone_number,
-            bio : req.body.bio !== undefined ? req.body.bio : user.bio,
-            base_location : {
-                city : req.body.city !== undefined ? req.body.city : user.base_location.city,
-                distance : req.body.distance !== undefined ? req.body.distance : user.base_location.distance
-            }
-        };
-
-        await database.updateAccount(id, acc);
+    if(user === null) 
+        return res.status(500).json({
+            message : 'invalid data was sent'
+        });
+    let acc :account = {
+        name : req.body.name !== undefined ? req.body.name : user.name,
+        email : req.body.email !== undefined ? req.body.email : user.email,
+        phone_number : req.body.phone_number !== undefined ? req.body.phone_number : user.phone_number,
+        bio : req.body.bio !== undefined ? req.body.bio : user.bio,
+        base_location : {
+            city : req.body.city !== undefined ? req.body.city : user.base_location.city,
+            distance : req.body.distance !== undefined ? req.body.distance : user.base_location.distance
+        }
+    };
+    await database.updateAccount(id, acc);
+    if(acc.email === user.email) 
         return res.status(200).json({
             message : 'profile was successfully updated'
         });
-    }
-    return res.status(500).json({
-        message : 'invalid data was sent'
-    });
+    
+    await request('http://gateway:8080/events/updateEvent', 'PATCH', undefined, { email : acc.email });
+    return res.status(200).json('profile was successfully updated');
 }
 
 const addFollower = async(req: Request, res: Response): Promise<Response> => {
@@ -233,7 +225,8 @@ const removeFollower = async(req: Request, res: Response): Promise<Response> => 
 }
 
 const getUser = async(req: Request, res: Response): Promise<Response> => {
-    return res.status(200).json({ user :  await database.getUserById(new ObjectId(String(req.query.id))) });
+    console.log(req.query.id);
+    return res.status(200).json({ data :  await database.getUserById(new ObjectId(String(req.query.id))) });
 }
 
 const userByEmail = async(req: Request, res: Response): Promise<Response> => {
