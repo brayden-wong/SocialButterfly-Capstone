@@ -67,7 +67,7 @@ services:
       - social-butterfly
     ports:
       - '5672:5672'
-      - '8080:15672'
+      - '15672:15672'
     volumes:
       - ~/.docker-conf/rabbitmq/data/:/var/lib/rabbitmq/
       - ~/.docker-conf/rabbitmq/log/:/var/log/rabbitmq
