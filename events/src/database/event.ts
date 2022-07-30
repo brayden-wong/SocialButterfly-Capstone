@@ -27,7 +27,6 @@ collections.geocode.createIndex({ 'location.city' : "text" });
 
 const eventsToday = async(date: Date) => {
     let results: Event[];
-    const before = String(date.getFullYear()) + '-' + String((date.getMonth() + 1)) + '-' + String(date.getDate() - 1);
     const after = String(date.getFullYear()) + '-' + String((date.getMonth() + 1)) + '-' + String(date.getDate() + 1);
     if(date.getTime() % 15 === 0) {
         results = await collections.event.find({
@@ -239,10 +238,11 @@ const validateLocation = async(user: user): Promise<user> => {
         user.base_location.coords = result.location.coordinates;
         return user;
     } 
-    const response = await request('http://maps.googleapis.com/maps/api/geocode/json', 'get', { address : user.base_location.city, key : config.server.google_api_key });
+    const response = await request('https://maps.googleapis.com/maps/api/geocode/json', 'get', { address : user.base_location.city, key : config.server.google_api_key });
 
     if(response === null)
         return user;
+    console.log(response.data);
     const location: Location = {
         _id : new ObjectId(),
         location : {

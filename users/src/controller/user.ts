@@ -54,10 +54,6 @@ const register = async(req : Request, res : Response, next : NextFunction): Prom
         return false;
     }
 
-    const getMeters = (miles: number) => {
-        return miles * 1609.344;
-    }
-
     const date = new Date();
 
     let User: User = {
