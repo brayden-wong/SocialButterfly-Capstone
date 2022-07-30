@@ -172,7 +172,7 @@ const registerEvent = async(req : Request, res : Response): Promise<Response> =>
         _id : new ObjectId(),
         event_name : req.body.event_name,
         host : {
-            id : user._id.toString(),
+            id : user._id,
             name : user.name
         },
         date : new Date(String(req.body.date)),
@@ -372,6 +372,13 @@ const validateLocation = async(req: Request, res: Response): Promise<Response> =
     return res.status(200).json(user);
 }
 
+const updateEvent = async(req: Request, res: Response): Promise<Response> => {
+    const oldEmail = req.body.oldEmail;
+    const newEmail = req.body.newEmail;
+
+    return await database.updateEvent(res, newEmail, oldEmail);
+}
+
 const massImport = async(req: Request, res: Response) => {
     
     const response = await axios.get('http://gateway:8080/users/users');
@@ -469,7 +476,7 @@ const massImport = async(req: Request, res: Response) => {
                     _id : new ObjectId(),
                     event_name : result[eventValue].name,
                     host : {
-                        id : user._id.toString(),
+                        id : user._id,
                         name : user.name,
                     },
                     date,
@@ -499,4 +506,4 @@ const massImport = async(req: Request, res: Response) => {
     res.status(200).json('done');
 }
 
-export default { /*massImport,*/ registerEvent, getEvents, searchByTags, rsvp, nearMe, checkLocation, validateLocation }
+export default { /*massImport,*/ updateEvent, registerEvent, getEvents, searchByTags, rsvp, nearMe, checkLocation, validateLocation }

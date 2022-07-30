@@ -4,7 +4,7 @@ export default interface Event {
     _id : ObjectId,
     event_name : string,
     host: {
-        id : string,
+        id : ObjectId,
         name : string
     },
     date : Date,

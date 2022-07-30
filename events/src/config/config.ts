@@ -21,7 +21,7 @@ const mongo = {
         geocode : process.env.mongo_geocodes,
         past_events : process.env.mongo_past_events
     },
-    url : `mongodb+srv://${process.env.mongo_username}:${process.env.mongo_password}@cluster0.bftq6du.mongodb.net/${process.env.mongo_host}/${process.env.mongo_database}`
+    url : `mongodb+srv://${process.env.mongo_username}:${process.env.mongo_password}@cluster0.bftq6du.mongodb.net/${process.env.mongo_database}`
     // url : 'mongodb://localhost/SocialButterfly'
 };
 

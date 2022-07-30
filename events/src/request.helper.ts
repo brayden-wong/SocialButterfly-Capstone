@@ -1,6 +1,6 @@
 import axios, { AxiosResponse } from 'axios';
 
-export async function request(url: string, method: string, params?: {}, data?: string): Promise<AxiosResponse<any, any> | null> {
+export async function request(url: string, method: string, params?: {}, data?: {}): Promise<AxiosResponse<any, any> | null> {
     if(url === null && method === null)
         return null;
     if(params !== undefined) {
