@@ -4,7 +4,6 @@ import bcrypt from 'bcryptjs';
 import config from '../config/config';
 import user from '../interfaces/user';
 import token from '../interfaces/token';
-import account from '../interfaces/account';
 import amqp from 'amqplib';
 import jwt from 'jsonwebtoken';
 
@@ -36,7 +35,7 @@ const addUser = async(req : Request, res: Response, user: user): Promise<Respons
             const url = config.server.queue || 'amqp://localhost';
             const connection = await amqp.connect(url);
             const channel = await connection.createChannel();
-            await channel.assertQueue('register account', {durable : true});
+            await channel.assertQueue('verify account', {durable : true});
             let link = 'http://' + req.get('host') + '/verify?id=' + user._id.toHexString();
         
             let options = {
@@ -46,7 +45,7 @@ const addUser = async(req : Request, res: Response, user: user): Promise<Respons
                 html : 'Hello, <br> Please Click on the link to verify your account. <br><a href=' + link + '>Click here to verify your account</a>'
             };
 
-            channel.sendToQueue('register account', Buffer.from(JSON.stringify(options)));
+            channel.sendToQueue('verify account', Buffer.from(JSON.stringify(options)));
         };
 
         await sendToQueue(req);
@@ -108,9 +107,8 @@ const checkEmail = async(email : string): Promise<boolean> => {
     return false;
 }
 
-const getUserById = async(id: ObjectId) => {
-    let user = await collections.users.findOne({ _id : id }) as user;
-    return user;
+const getUserById = async(id: ObjectId): Promise<user> => {
+    return await collections.users.findOne({ _id : id }) as user;
 }
 
 const getUserByEmail = async(email : string) => {
@@ -136,8 +134,19 @@ const resetPassword = async(req : Request, res : Response): Promise<Response> =>
 }
 
 // updates the user's account with specific data that was updated, everything else will be not be updated
-const updateAccount = async(id : string, account : account) => { 
-    await collections.users.replaceOne({_id : new ObjectId(id)}, account); 
+const updateAccount = async(id: ObjectId, user : user) => {
+    const result = await getUserById(id);
+    result.name = user.name;
+    result.password = user.password;
+    result.bio = user.bio;
+    result.created = user.created;
+    result.email = user.email;
+    result.phone_number = user.phone_number;
+    result.follow_list = user.follow_list;
+    result.follower_count = user.follower_count;
+    result.base_location = user.base_location;
+
+    await collections.users.replaceOne({ _id : result._id}, result); 
 }
 
 const removeExpiredTokens = async() => {

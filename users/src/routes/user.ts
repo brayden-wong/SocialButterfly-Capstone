@@ -14,7 +14,7 @@ router.post('/login', controller.login);
 router.post('/register', controller.register);
 router.post('/reset', controller.resetPassword);
 router.patch('/reset', controller.reset);
-router.patch('/update', controller.updateUserInformation);
+router.patch('/update', verify.verify, controller.updateUserInformation);
 router.patch('/follow', verify.verify, controller.addUser);
 router.patch('/unfollow', verify.verify, controller.removeUser);
 

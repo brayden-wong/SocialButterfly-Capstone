@@ -1,19 +1,17 @@
 import { Request, Response, NextFunction } from 'express';
 import { ObjectId } from 'mongodb';
+import { Eureka } from 'eureka-js-client';
+import { request } from '../request.helper';
 import jwt from 'jsonwebtoken';
-import axios from 'axios';
 import bcrypt from 'bcryptjs';
 import database from '../database/user';
 import User from '../interfaces/user';
-import account from '../interfaces/account';
 import Token from '../interfaces/token';
 import Login from '../interfaces/login';
 import config from '../config/config';
 import token from '../middleware/verify';
 import amqp from 'amqplib';
 import eureka from '../eureka-helper';
-import { Eureka } from 'eureka-js-client';
-import { request } from '../request.helper';
 let client: Eureka;
 
 setTimeout(() => {
@@ -22,6 +20,10 @@ setTimeout(() => {
 
 const parseNumber = (number : string) => {
     return number.replace('(', '').replace(')', '').replace('-', '').replace('-', '');
+}
+
+const getMeters = (miles: number) => {
+    return miles * 1609.344;
 }
 
 const verifyAccount = (req : Request, res : Response, next : NextFunction): Promise<Response> => { return database.validateUser(req, res); };
@@ -185,29 +187,60 @@ const reset = async(req : Request, res : Response): Promise<Response> => {
 }
 
 const updateUserInformation = async(req : Request, res : Response): Promise<Response> => {
-    const id = String(req.query.id);
-    const user = await database.getUserById(new ObjectId(id));
+    const id = new ObjectId(String(req.query.id));
+    const user = await database.getUserById(id);
     if(user === null) 
         return res.status(500).json({
             message : 'invalid data was sent'
         });
-    let acc :account = {
+
+    let newUser: User = {
+        _id : user._id,
         name : req.body.name !== undefined ? req.body.name : user.name,
+        password : user.password,
         email : req.body.email !== undefined ? req.body.email : user.email,
         phone_number : req.body.phone_number !== undefined ? req.body.phone_number : user.phone_number,
         bio : req.body.bio !== undefined ? req.body.bio : user.bio,
         base_location : {
             city : req.body.city !== undefined ? req.body.city : user.base_location.city,
-            distance : req.body.distance !== undefined ? req.body.distance : user.base_location.distance
-        }
+            coords : user.base_location.coords,
+            distance : req.body.distance !== undefined ? getMeters(Number.parseInt(req.body.distance)) : user.base_location.distance
+        },
+        follow_list : user.follow_list,
+        follower_count : user.follower_count,
+        created : user.created,
+        verified : req.body.email === undefined ? user.verified : false
     };
-    await database.updateAccount(id, acc);
-    if(acc.email === user.email) 
+
+    if(req.body.city !== null)
+        newUser = await validateLocation(newUser);
+
+    await database.updateAccount(user._id, newUser);
+    if(newUser.email === user.email) 
         return res.status(200).json({
             message : 'profile was successfully updated'
         });
     
-    await request('http://gateway:8080/events/updateEvent', 'PATCH', undefined, { email : acc.email });
+    const sendToQueue = async(req : Request) => {
+        const url = config.server.queue || 'amqp://localhost';
+        const connection = await amqp.connect(url);
+        const channel = await connection.createChannel();
+        await channel.assertQueue('verify account', {durable : true});
+        let link = 'http://' + req.get('host') + '/verify?id=' + user._id.toHexString();
+    
+        let options = {
+            from : '',
+            to : user.email,
+            subject : 'Social Butterfly Account Verification',
+            html : 'Hello, <br> Please Click on the link to verify your account. <br><a href=' + link + '>Click here to verify your account</a>'
+        };
+
+        channel.sendToQueue('verify account', Buffer.from(JSON.stringify(options)));
+    };
+
+    await sendToQueue(req);
+
+    await request('http://gateway:8080/events/updateEvent', 'patch', undefined, { newEmail : newUser.email, oldEmail : user.email });
     return res.status(200).json('profile was successfully updated');
 }
 
@@ -229,8 +262,6 @@ const getUser = async(req: Request, res: Response): Promise<Response> => {
     return res.status(200).json({ data :  await database.getUserById(new ObjectId(String(req.query.id))) });
 }
 
-const userByEmail = async(req: Request, res: Response): Promise<Response> => {
-    return res.status(200).json(await database.getUserByEmail(req.body.email));
-}
+const userByEmail = async(req: Request, res: Response): Promise<Response> => {return res.status(200).json(await database.getUserByEmail(req.body.email));}
 
 export default { verifyAccount, register, login, getAllUsers, resetPassword, reset, updateUserInformation, addUser: addFollower, removeUser: removeFollower, getUser, userByEmail };
