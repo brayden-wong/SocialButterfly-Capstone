@@ -1,7 +1,10 @@
-import { Response, Request } from 'express';
+import { Response, Request, response } from 'express';
 import { ObjectId } from 'mongodb';
+import fs from 'fs';
+import path from 'path';
+import { parse } from 'csv-parse';
 import Event from '../interfaces/event';
-import axios from 'axios';
+import axios, { AxiosResponse } from 'axios';
 import Location from '../interfaces/location';
 import config from '../config/config';
 import database from '../database/event';
@@ -11,15 +14,12 @@ import user from '../interfaces/user';
 import verify from '../middleware/verify';
 import eureka from '../eureka-helper';
 import { Eureka } from 'eureka-js-client';
+import { request } from '../request.helper';
 let client: Eureka;
 
 setTimeout(() => {
-    client = eureka.registerService('event-api', Number.parseInt(config.server.port));
-}, 30000);
-
-import fs from 'fs';
-import path from 'path';
-import { parse } from 'csv-parse';
+    client = eureka.registerService('events', Number.parseInt(config.server.port));
+}, 15000);
 
 const getMeters = (miles: number) => {
     return miles * 1609.344;
@@ -71,7 +71,8 @@ const getMonth = async(date: Date) => {
 
 const validateEvent = async(event: Event): Promise<Boolean> => {
     const results = await getMonth(event.date);
-
+    if(results.length === 0)
+        return true;
     if(await database.doTagsMatch(event))
             return false;
     else {
@@ -94,67 +95,45 @@ const validateEvent = async(event: Event): Promise<Boolean> => {
     
 };
 
-const updateAddress = async(event: Event): Promise<Event> => {
-    await axios.get('https://maps.googleapis.com/maps/api/geocode/json', {
-        params: {
-            address : event.formatted_address,
-            key : config.server.google_api_key
-        }
-    })
-        .then(async response => {
-            const city = response.data.results[0].address_components.filter((address: { types: string | string[]; }) => address.types.includes('locality'))[0].long_name;
-            event.city = city;
-
-            event.location.coordinates.push(response.data.results[0].geometry.location.lng);
-            event.location.coordinates.push(response.data.results[0].geometry.location.lat);
-
-            return event;
-        });
+const updateAddress = async(event: Event): Promise<Event | null> => {
+    const response = await request('https://maps.googleapis.com/maps/api/geocode/json', 'get', { address : event.formatted_address, key : config.server.google_api_key });
+    if(response === null)
+        return null;
+    const city = response.data.results[0].address_components.filter((address : {types: string | string[]; }) => address.types.includes('locality'))[0].long_name;
+    event.city = city;
+    event.location.coordinates.push(response.data.results[0].geometry.location.lng);
+    event.location.coordinates.push(response.data.results[0].geometry.location.lat);
+    event.formatted_address = response.data.results[0].formatted_address;
+    
     return event;
 }
 
 const uploadCity = async(event: Event) => {
-    await axios.get('https://maps.googleapis.com/maps/api/geocode/json', {
-        params: {
-            address : event.city,
-            key : config.server.google_api_key
+
+    const response = await request('https://maps.googleapis.com/maps/api/geocode/json', 'get', { address : event.city, key : config.server.google_api_key });
+
+    if(response === null)
+        return null;
+    const location: Location = {
+        _id : new ObjectId(),
+        location : {
+            type : 'Point',
+            city : response.data.results[0].address_components.filter((address : { types : string | string[];}) => address.types.includes('locality'))[0].long_name,
+            coordinates : [
+                response.data.results[0].geometry.location.lng,
+                response.data.results[0].geometry.location.lat
+            ]
         }
-    })
-        .then(async response => {
-            const location: Location = {
-                _id : new ObjectId(),
-                location : {
-                    type: 'Point',
-                    city : response.data.results[0].address_components.filter((address : { types : string | string[];}) => address.types.includes('locality'))[0].long_name,
-                    coordinates : [
-                        response.data.results[0].geometry.location.lng,
-                        response.data.results[0].geometry.location.lat
-                    ]
-                }
-            };
-            await database.insertCity(location);
-        });
+    };
+    await database.insertCity(location);
 };
 
-const getUser = async(req: Request): Promise<user> => {
+const getUser = async(req: Request): Promise<user | null> => {
     const id = verify.getToken(req);
-    const response = await axios.get(`http://users:3000/getUser?id=${id}`);
-    const user:user = {
-        _id : response.data.user._id,
-        name : response.data.user.name,
-        email : response.data.user.email,
-        phone_number : response.data.user.phone_number,
-        bio : response.data.bio,
-        base_location : {
-            city : response.data.user.base_location.city,
-            coords : response.data.user.base_location.coords,
-            distance : response.data.user.base_location.distance
-        },
-        follow_list : response.data.user.follow_list,
-        follower_count : response.data.user.follower_count,
-        verified : response.data.user.verified
-    };
-    return user;
+    const response = await request(`http://gateway:8080/users/getUser`, 'get', { id : id });
+    if(response === null || response.data === null)
+        return null;
+    return response.data.data as user;
 }
 
 const setDateTime = (date: Date, time: string): Date => {
@@ -177,8 +156,8 @@ const setDateTime = (date: Date, time: string): Date => {
 
 const registerEvent = async(req : Request, res : Response): Promise<Response> => {
     const user = await getUser(req);
-    if(!user.verified)
-        return res.status(500).json('user is not verified');
+    if(user === null || !user.verified)
+        return res.status(500).json('user is not verified or no user was returned');
     const date = setDateTime(new Date(req.body.date), String(req.body.time));
     
     const isMorning = String(req.body.time).substring(String(req.body.time).indexOf(' ') + 1, String(req.body.time).length);
@@ -206,7 +185,7 @@ const registerEvent = async(req : Request, res : Response): Promise<Response> =>
         },
         city : req.body.city,
         rsvp : [],
-        available_slots : req.body.available_slots,
+        available_slots : req.body.available_slots === undefined ? -1 : req.body.available_slots,
         organizations : req.body.organizations,
         online : req.body.online
     };
@@ -226,7 +205,9 @@ const registerEvent = async(req : Request, res : Response): Promise<Response> =>
             After this if statement you need to check to see if there are similar 
             events like this happening in the area
         */
-        event = await updateAddress(event);
+        const response = await updateAddress(event);
+        if(response !== null)
+            event = response;
         if(await validateEvent(event)) {
             await database.insertEvent(event);
             return res.status(200).json({
@@ -307,7 +288,8 @@ const getEvents = async(req: Request, res: Response)/*: Promise<Response>*/ => {
 
 const nearMe = async(req: Request, res: Response) => {
     const user = await getUser(req);
-
+    if(user === null)
+        return res.status(500).json('user does not exist');
     if(user.base_location.city !== null)
         return res.status(200).json(await database.nearMe(user));
     return res.status(200).json(user.base_location.city);
@@ -333,7 +315,7 @@ const searchByTags = async(req: Request, res: Response): Promise<Response> => {
 
         const radius = getRadius(Number.parseInt(req.body.distance));;
         if(radius === -1)
-            return res.status(404).json('invalid radius');
+            return res.status(500).json('invalid radius');
         
         if(filters.length > 5 || filters.length === 0)
             return res.status(500).json({
@@ -347,6 +329,8 @@ const searchByTags = async(req: Request, res: Response): Promise<Response> => {
 
 const rsvp = async(req: Request, res: Response): Promise<Response> => {
     const user = await getUser(req);
+    if(user === null)
+        return res.status(500).json('user does not exist');
     const id = new ObjectId(String(req.query.id));
     if(user.verified)
         return await database.rsvp(res, id, user);
@@ -358,33 +342,25 @@ const checkLocation = async(req: Request, res: Response): Promise<Response> => {
 
     const exists = await database.checkLocation(city);
 
-    if(exists !== null)
-        if(exists)
-            return res.status(200).json(true);
-        else {
-            await axios.get('https://maps.googleapis.com/maps/api/geocode/json', {
-                params: {
-                    address : city,
-                    key : config.server.google_api_key
-                }
-            })
-            .then(async response => {
-                const location: Location = {
-                    _id : new ObjectId(),
-                    location : {
-                        type: 'Point',
-                        city : response.data.results[0].address_components.filter((address : { types : string | string[];}) => address.types.includes('locality'))[0].long_name,
-                        coordinates : [
-                            response.data.results[0].geometry.location.lng,
-                            response.data.results[0].geometry.location.lat
-                        ]
-                    }
-                };
-                await database.insertCity(location);
-                return res.status(200).json(false);
-            });
+    if(exists)
+        return res.status(200).json(true);
+
+    const response = await request('https://maps.googleapis.com/maps/api/geocode/json', 'get', { address : city, key : config.server.google_api_key });
+    if(response === null)
+        return res.status(500).json({city : city, error: 'does not exist' });
+    const location: Location = {
+        _id : new ObjectId(),
+        location : {
+            type: 'Point',
+            city : response.data.results[0].address_components.filter((address : { types : string | string[];}) => address.types.includes('locality'))[0].long_name,
+            coordinates : [
+                response.data.results[0].geometry.location.lng,
+                response.data.results[0].geometry.location.lat
+            ]
         }
-    return res.status(500);
+    };
+    await database.insertCity(location);
+    return res.status(200).json(false);
 }
 
 const validateLocation = async(req: Request, res: Response): Promise<Response> => {
@@ -398,7 +374,7 @@ const validateLocation = async(req: Request, res: Response): Promise<Response> =
 
 const massImport = async(req: Request, res: Response) => {
     
-    const response = await axios.get('http://users:3000/users');
+    const response = await axios.get('http://gateway:8080/users/users');
     const locations = await database.getLocations(); 
     
     const users:user[] = response.data;

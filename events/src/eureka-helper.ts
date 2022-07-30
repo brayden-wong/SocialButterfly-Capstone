@@ -1,7 +1,6 @@
 import { Eureka }  from 'eureka-js-client';
 import IP from 'ip';
 const eurekaPort = 8761;
-const host = 'eureka';
 const ip = IP.address();
 
 export default {
