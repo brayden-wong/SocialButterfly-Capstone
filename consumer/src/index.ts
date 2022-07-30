@@ -10,7 +10,7 @@ const createChannels = async() => {
     const connection = await amqp.connect(url);
     const channel = await connection.createChannel();
 
-    await channel.assertQueue('register account');
+    await channel.assertQueue('verify account');
     await channel.assertQueue('event reminder');
     await channel.assertQueue('reset password');
     await channel.assertQueue('rsvp');
@@ -54,7 +54,7 @@ const sendEmail = (data : amqp.ConsumeMessage | null) => {
 
 const consumeAccount = async() => {
     channel = await createConnection(url, connection, channel);
-    channel.consume('register account', data => {
+    channel.consume('verify account', data => {
         sendEmail(data);
     });
 }
