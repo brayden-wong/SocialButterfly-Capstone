@@ -25,9 +25,29 @@ const collections = {
 
 collections.geocode.createIndex({ 'location.city' : "text" });
 
+const eventsToday = async(date: Date) => {
+    let results: Event[];
+    const before = String(date.getFullYear()) + '-' + String((date.getMonth() + 1)) + '-' + String(date.getDate() - 1);
+    const after = String(date.getFullYear()) + '-' + String((date.getMonth() + 1)) + '-' + String(date.getDate() + 1);
+    if(date.getTime() % 15 === 0) {
+        results = await collections.event.find({
+            date : {$lt : new Date(after)}
+        }).toArray() as Event[];
+
+        for(let i = 0; i < results.length; i++) {
+            await collections.event.deleteOne(results[i]);
+            await collections.past_event.insertOne(results[i]);
+        }
+    }
+}
+
+setTimeout(() => {
+    eventsToday(new Date());
+}, 60000);
+
 const sendRSVP = async (date : Date) => {
     const temp = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
-
+    
     const events = await collections.event.find({
         $and : [
             { date : { $gte : date }},
