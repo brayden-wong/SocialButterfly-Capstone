@@ -24,7 +24,7 @@ const addUser = async(req : Request, res: Response, user: user): Promise<Respons
         return res.status(500).json({
             error : 'no user was sent'
         });
-    } else if((await collections.users.find({ $or : [{email : user.email}, {phone_number : user.phone_number}] }).toArray()).length != 0) {
+    } else if((await collections.users.find({ $or : [{email : user.email}, {phone_number : user.phone_number}] }).toArray()).length !== 0) {
         return res.status(500).json({
             message : 'that email already exists or phone number already exists'
         });

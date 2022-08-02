@@ -19,14 +19,6 @@ app.use((req, res, next) => {
     next();
 });
 
-setInterval(async () => { 
-    let date = new Date(); 
-
-    if((date.getHours() === 7)) {
-        database.sendRSVP(new Date(date.getFullYear(), date.getMonth(), date.getDate() + 7));
-    }
-}, 60000);
-
 app.use('/', routes);
 
 

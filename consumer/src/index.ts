@@ -31,53 +31,53 @@ const createConnection = async(url: string, connection: Connection, channel: Cha
 }
 
 const sendEmail = (data : amqp.ConsumeMessage | null) => {
-    if(data !== null) {
-        let options = JSON.parse(data.content.toString());
-        options.from = config.username;
-        const service =  process.env.service || 'gmail';
-        
-        const transporter = mailer.createTransport({
-            service: service,
-            port: 587,
-            secure: false,
-            requireTLS: true,
-            auth: {
-                user: config.username,
-                pass: config.password,
-            },
-            logger: true
-        });
+    if(data === null)
+        return;
+    let options = JSON.parse(data.content.toString());
+    options.from = config.username;
+    const service =  process.env.service || 'gmail';
+    
+    const transporter = mailer.createTransport({
+        service: service,
+        port: 587,
+        secure: false,
+        requireTLS: true,
+        auth: {
+            user: config.username,
+            pass: config.password,
+        },
+        logger: true
+    });
 
-        transporter.sendMail(options);
-    } else return;
+    transporter.sendMail(options);
 }
 
 const consumeAccount = async() => {
     channel = await createConnection(url, connection, channel);
     channel.consume('verify account', data => {
         sendEmail(data);
-    });
+    }, { noAck : true });
 }
 
 const consumeResetPassword = async() => {
     channel = await createConnection(url, connection, channel);
     channel.consume('reset password', data => {
         sendEmail(data);
-    });
+    }, { noAck : true });
 };
 
 const consumeRSVP = async() => {
     channel = await createConnection(url, connection, channel);
     channel.consume('rsvp', data => {
         sendEmail(data);
-    });
+    }, { noAck : true });
 }
 
 const consumeReminder = async() => {
     channel = await createConnection(url, connection, channel);
     channel.consume('event reminder', data => {
         sendEmail(data);
-    })
+    }, { noAck : true })
 }
 
 setTimeout(() => {

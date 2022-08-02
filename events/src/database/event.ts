@@ -232,17 +232,19 @@ const rsvp = async(res: Response, id: ObjectId, user : user): Promise<Response> 
 }
 
 const validateLocation = async(user: user): Promise<user> => {
-    const result = await collections.geocode.findOne({ 'location.city' : new RegExp(user.base_location.city, 'i') }) as Location;
-
+    const city = user.base_location.city.split(',')[0];
+    const result = await collections.geocode.findOne({ 'location.city' : new RegExp(city, 'i') }) as Location;
+    console.log(result);
     if(result !== null) {
         user.base_location.coords = result.location.coordinates;
         return user;
     } 
-    const response = await request('https://maps.googleapis.com/maps/api/geocode/json', 'get', { address : user.base_location.city, key : config.server.google_api_key });
+    const response = await request('https://maps.googleapis.com/maps/api/geocode/json', 'get',
+    { address : user.base_location.city, key : config.server.google_api_key });
 
     if(response === null)
         return user;
-    console.log(response.data);
+    console.log(response.data.address_components);
     const location: Location = {
         _id : new ObjectId(),
         location : {

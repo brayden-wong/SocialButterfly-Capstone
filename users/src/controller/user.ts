@@ -1,6 +1,5 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response } from 'express';
 import { ObjectId } from 'mongodb';
-import { Eureka } from 'eureka-js-client';
 import { request } from '../request.helper';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
@@ -12,10 +11,9 @@ import config from '../config/config';
 import token from '../middleware/verify';
 import amqp from 'amqplib';
 import eureka from '../eureka-helper';
-let client: Eureka;
 
 setTimeout(() => {
-    client = eureka.registerService('users', Number.parseInt(config.server.port));
+    eureka.registerService('users', Number.parseInt(config.server.port));
 }, 15000);
 
 const parseNumber = (number : string) => {
@@ -26,7 +24,7 @@ const getMeters = (miles: number) => {
     return miles * 1609.344;
 }
 
-const verifyAccount = (req : Request, res : Response, next : NextFunction): Promise<Response> => { return database.validateUser(req, res); };
+const verifyAccount = (req : Request, res : Response): Promise<Response> => { return database.validateUser(req, res); };
 
 const validateLocation = async(user: User): Promise<User> => {
     const response = await request('http://gateway:8080/events/validatelocation', 'post', undefined, { user : user });
@@ -35,7 +33,7 @@ const validateLocation = async(user: User): Promise<User> => {
     return response.data as User;
 }
 
-const register = async(req : Request, res : Response, next : NextFunction): Promise<Response> => {
+const register = async(req : Request, res : Response): Promise<Response> => {
     let {
         name,
         password,
@@ -123,8 +121,6 @@ const login = async(req : Request, res : Response): Promise<Response> => {
     } else if(config.regex.phone.test(login.username)) {
         if(await database.getPhone(parseNumber(login.username))) {
             const user = await database.getPhone(parseNumber(login.username)) as User;
-            console.log('user', user);
-            console.log(bcrypt.compareSync(login.password, user.password));
             if(user !== undefined && bcrypt.compareSync(login.password, user.password)) {
                 const token = jwt.sign({ id : String(user._id)}, config.server.token.secret, { expiresIn : 60 * 60 });
                 req.headers['authorization'] = token;
@@ -189,12 +185,12 @@ const updateUserInformation = async(req : Request, res : Response): Promise<Resp
         return res.status(500).json({
             message : 'invalid data was sent'
         });
-
+    console.log(req.body);
     let newUser: User = {
         _id : user._id,
-        name : req.body.name !== undefined ? req.body.name : user.name,
+        name : req.body.name !== undefined ? String(req.body.name).toLowerCase() : user.name,
         password : user.password,
-        email : req.body.email !== undefined ? req.body.email : user.email,
+        email : req.body.email !== undefined ? String(req.body.email).toLowerCase() : user.email,
         phone_number : req.body.phone_number !== undefined ? req.body.phone_number : user.phone_number,
         bio : req.body.bio !== undefined ? req.body.bio : user.bio,
         base_location : {
@@ -228,7 +224,8 @@ const updateUserInformation = async(req : Request, res : Response): Promise<Resp
             from : '',
             to : user.email,
             subject : 'Social Butterfly Account Verification',
-            html : 'Hello, <br> Please Click on the link to verify your account. <br><a href=' + link + '>Click here to verify your account</a>'
+            html : 'Hello, <br> Please Click on the link to verify your account. <br>' + 
+                '<a href=' + link + '>Click here to verify your account</a>'
         };
 
         channel.sendToQueue('verify account', Buffer.from(JSON.stringify(options)));
@@ -253,10 +250,7 @@ const removeFollower = async(req: Request, res: Response): Promise<Response> => 
     return await database.removeFollower(id, user, res);
 }
 
-const getUser = async(req: Request, res: Response): Promise<Response> => {
-    console.log(req.query.id);
-    return res.status(200).json({ data :  await database.getUserById(new ObjectId(String(req.query.id))) });
-}
+const getUser = async(req: Request, res: Response): Promise<Response> => {return res.status(200).json({ data :  await database.getUserById(new ObjectId(String(req.query.id))) });}
 
 const userByEmail = async(req: Request, res: Response): Promise<Response> => {return res.status(200).json(await database.getUserByEmail(req.body.email));}
 

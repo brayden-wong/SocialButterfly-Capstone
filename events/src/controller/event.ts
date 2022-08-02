@@ -1,10 +1,7 @@
 import { Response, Request, response } from 'express';
 import { ObjectId } from 'mongodb';
-import fs from 'fs';
-import path from 'path';
-import { parse } from 'csv-parse';
+import { request } from '../request.helper';
 import Event from '../interfaces/event';
-import axios, { AxiosResponse } from 'axios';
 import Location from '../interfaces/location';
 import config from '../config/config';
 import database from '../database/event';
@@ -13,13 +10,20 @@ import query from '../interfaces/query';
 import user from '../interfaces/user';
 import verify from '../middleware/verify';
 import eureka from '../eureka-helper';
-import { Eureka } from 'eureka-js-client';
-import { request } from '../request.helper';
-let client: Eureka;
 
 setTimeout(() => {
-    client = eureka.registerService('events', Number.parseInt(config.server.port));
+    eureka.registerService('events', Number.parseInt(config.server.port));
 }, 15000);
+
+setInterval(async () => { 
+    let date = new Date(); 
+    console.log('date:', date.toLocaleTimeString());
+    console.log('hour:', date.getUTCHours()); 
+    if((date.getHours() === 23)) {
+        console.log('checking');
+        database.sendRSVP(new Date(date.getFullYear(), date.getMonth(), date.getDate() + 7));
+    }
+}, 60000);
 
 const getMeters = (miles: number) => {
     return miles * 1609.344;
@@ -110,7 +114,8 @@ const updateAddress = async(event: Event): Promise<Event | null> => {
 
 const uploadCity = async(event: Event) => {
 
-    const response = await request('https://maps.googleapis.com/maps/api/geocode/json', 'get', { address : event.city, key : config.server.google_api_key });
+    const response = await request('https://maps.googleapis.com/maps/api/geocode/json', 'get', 
+        { address : event.city, key : config.server.google_api_key });
 
     if(response === null)
         return null;
@@ -185,7 +190,7 @@ const registerEvent = async(req : Request, res : Response): Promise<Response> =>
         },
         city : req.body.city,
         rsvp : [],
-        available_slots : req.body.available_slots === undefined ? -1 : req.body.available_slots,
+        available_slots : req.body.available_slots === undefined || req.body.available_slots === 0 ? -1 : req.body.available_slots,
         organizations : req.body.organizations,
         online : req.body.online
     };
@@ -233,7 +238,7 @@ const registerEvent = async(req : Request, res : Response): Promise<Response> =>
     }
 }
 
-const getEvents = async(req: Request, res: Response)/*: Promise<Response>*/ => {
+const getEvents = async(req: Request, res: Response): Promise<Response> => {
     const temp = new Date();
     const parameters: query = {
         tags : req.body.tags === undefined ? [] : req.body.tags,
@@ -244,46 +249,30 @@ const getEvents = async(req: Request, res: Response)/*: Promise<Response>*/ => {
 
     const city = await database.cityLocation(parameters.city);
 
-    if(city !== null) {
-        const query = [{
-            $geoNear : {
-                near : { type : 'Point', coordinates : [city.location.coordinates[0], city.location.coordinates[1]]},
-                query : { $and : [
-                    parameters.tags.length === 0 ? { tags : { $exists : true, $not : { $size : 0 }}} : {tags : { $in : parameters.tags }},
-                    parameters.dates.length === 2 ? { $and : [
-                        { date : { $gte : new Date(parameters.dates[0])}},
-                        { date : { $lte : new Date(parameters.dates[1])}}
-                    ]} : { $and : [
-                        { date : { $gte : parameters.dates[0]}},
-                        { date : { $lt : new Date(parameters.dates[0].getFullYear(), parameters.dates[0].getMonth(), parameters.dates[0].getDate() + 1)}}
-                    ]},
-                    { city : new RegExp(parameters.city, 'i')},
-                    
-                    
+    if(city === null) 
+        return res.status(500).json('that city doesn\'t exist');
+    const query = [{
+        $geoNear : {
+            near : { type : 'Point', coordinates : [city.location.coordinates[0], city.location.coordinates[1]]},
+            query : { $and : [
+                parameters.tags.length === 0 ? { tags : { $exists : true, $not : { $size : 0 }}} : {tags : { $in : parameters.tags }},
+                parameters.dates.length === 2 ? { $and : [
+                    { date : { $gte : new Date(parameters.dates[0])}},
+                    { date : { $lte : new Date(parameters.dates[1])}}
+                ]} : { $and : [
+                    { date : { $gte : parameters.dates[0]}},
+                    { date : { $lt : new Date(parameters.dates[0].getFullYear(), parameters.dates[0].getMonth(), parameters.dates[0].getDate() + 1)}}
                 ]},
-                maxDistance : getMeters(parameters.radius),
-                distanceField : 'dist.calculated',
-                spherical : true
-            }
-        }];
+                { city : new RegExp(parameters.city, 'i')},
+            ]},
+            maxDistance : getMeters(parameters.radius),
+            distanceField : 'dist.calculated',
+            spherical : true
+        }
+    }];
 
-        // const query = [{ 
-        //     $match : {
-        //         $and : [
-        //             parameters.tags.length === 0 ? { tags : { $exists : true, $not : { $size : 0 }}} : { tags : { $in : parameters.tags }},
-        //             parameters.dates.length === 2 ? { $and : [
-        //                 { date : { $gte : new Date(parameters.dates[0])}},
-        //                 { date : { $lte : new Date(parameters.dates[1])}}
-        //             ]} : { $and : [
-        //                 { date : { $gte : parameters.dates[0]}},
-        //                 { date : { $lt : new Date(parameters.dates[0].getFullYear(), parameters.dates[0].getMonth(), parameters.dates[0].getDate() + 1)}}
-        //             ]},
-        //             { city : new RegExp(parameters.city, 'i')}
-        //         ]
-        //     }
-        // }];
-        return res.status(200).json(await database.getEvents(query));
-    }
+    return res.status(200).json(await database.getEvents(query));
+    
 }
 
 const nearMe = async(req: Request, res: Response) => {
@@ -379,131 +368,4 @@ const updateEvent = async(req: Request, res: Response): Promise<Response> => {
     return await database.updateEvent(res, newEmail, oldEmail);
 }
 
-const massImport = async(req: Request, res: Response) => {
-    
-    const response = await axios.get('http://gateway:8080/users/users');
-    const locations = await database.getLocations(); 
-    
-    const users:user[] = response.data;
-
-    type name = {
-        name : string
-    };
-
-    const csvFilePath = path.resolve(__dirname, 'files/MOCK_DATA.csv');
-    const headers = ['name'];
-    const fileContent = fs.readFileSync(csvFilePath, { encoding : 'utf-8' });
-
-    parse(fileContent, {
-        delimiter : ',',
-        columns: headers,
-        fromLine : 2
-    }, async(error, result: name[]) => {
-        if(error)
-            console.log(error);
-        else {
-            let times = ["7:00 am", "7:15 am", "7:30 am", "7:45 am", "8:00 am", "8:15 am", "8:30 am", "8:45 am", "9:00 am", "9:15 am", "9:30 am", "9:45 am","10:00 am", 
-            "10:15 am", "10:30 am", "10:45 am", "11:00 am", "11:15 am", "11:30 am", "11:45 am", "12:00 pm", "12:15 pm", "12:30 pm", "12:45 pm", "1:00 pm", "1:15 pm", "1:30 pm",
-            "1:45 pm", "2:00 pm", "2:15 pm", "2:30 pm", "2:45 pm", "3:00 pm", "3:15 pm", "3:30 pm", "3:45 pm", "4:00 pm", "4:15 pm", "4:30 pm", "4:45 pm", "5:00 pm", "5:15 pm",
-            "5:30 pm", "5:45 pm", "6:00 pm", "6:15 pm", "6:30 pm", "6:45 pm", "7:00 pm","7:15 pm","7:30 pm", "7:45 pm", "8:00 pm", "8:15 pm", "8:30 pm", "8:45 pm", "9:00 pm", 
-            "9:15 pm", "9:30 pm", "9:45 pm", "10:00 pm", "10:15 pm", "10:30 pm", "10:45 pm", "11:00 pm"];
-
-            let taglist = ["basketball", "sports", "soccer", "dragonboat", "python", "javascript", "java", "hack-a-thon", "running", "star-gazing", "swimming", "league of legends",
-            "mongodb", "mysql", "sqlserver", "nodejs", "springboot", "movies", "tv-shows", "foodie", "convention", "apex legends", "music", "concert", "free", "rave", "edm", "gaming",
-            "football", "sneakers", "mechanical keyboards", "cooking", "meet and greet", "cook out", "kpop", "jpop", "cpop", "anime", "festival", "parade", "fair", "park", "nature", "carnival",
-            "hiking", "outdoors", "dogs", "cats", "pets", "coding", "bird watching", "whale watching", "boba", "bubble tea", "culinary arts", "ruby", "php", "ruby on rails", "flask", "wine tasting",
-            "night market", "vegan", "vegetarian", "meat lovers", "fasion", "hats", "protests", "march", "music festival", "fitness", "track and field", "youtube", "twtich", "computers", "beer tasting",
-            "art", "drawing", "painting", "art show", "comedy", "areospace", "software engineering", "biology", "chemistry", "physics", "engineering", "marine biology", "math", "algebra", "tutoring", 
-            "career fair", "technology", "product management", "information systems", "parenting", "traveling", "date night", "arts and crafts", "movie night", "frank n son"
-            ];
-
-            const randomDate = (start: Date, end: Date) => {
-                return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
-            }
-
-            const events: Event[] = [];
-
-            for(let i = 0; i < 50; i++) {
-                const eventValue = Math.floor(Math.random() * result.length);
-                const nameValue = Math.floor(Math.random() * users.length);
-                const user = users[nameValue];
-                const timeValue = Math.floor(Math.random() * times.length);
-                const time = times[timeValue];
-                const num_of_tags = Math.floor(Math.random() * 5) + 1;
-                const tags: string[] = [];
-                const date = randomDate(new Date(2022, 0, 1), new Date(2024, 11, 31));
-                for(let k = 0; k < num_of_tags; k++) {
-                    let value = Math.floor(Math.random() * taglist.length);
-                    if(tags.includes(taglist[value]))
-                        while(tags.includes(taglist[value])) {
-                            value = Math.floor(Math.random() * taglist.length);
-                            tags.push(taglist[value]);
-                        }
-                    else    
-                        tags.push(taglist[value]);
-                }
-                const cityValue = Math.floor(Math.random() * locations.length);
-                const location = locations[cityValue].location;
-                let positive = Math.floor(Math.random() * 2) + 1 === 1 ? true : false;
-                const alterLong = (Math.random() * (.1 - 0.0001));
-                if(positive)
-                    location.coordinates[0] += alterLong;
-                else 
-                    location.coordinates[0] -= alterLong;
-                positive = Math.floor(Math.random() * 2) + 1 === 1 ? true : false;
-                const alterLat = (Math.random() * (.1 - 0.0001) + .1);
-                if(positive)
-                    location.coordinates[1] += alterLat;
-                else 
-                    location.coordinates[1] -= alterLat;
-                const response = await axios.request({
-                    method : 'get',
-                    url : 'https://maps.googleapis.com/maps/api/geocode/json',
-                    params : {
-                        key : config.server.google_api_key,
-                        latlng : `${location.coordinates[1]},${location.coordinates[0]}`
-                    }
-                });
-                // if(response.data.results[0].address_components.filter((address: { types: string | string[]; }) => address.types.includes('locality'))[0].long_name)
-                //     city = response.data.results[0].address_components.filter((address: { types: string | string[]; }) => address.types.includes('locality'))[0].long_name;
-                // else
-                const city = response.data.results[0].address_components[2].long_name;
-                const formatted_address = response.data.results[0].formatted_address;
-                const number = Math.floor(Math.random() * 100) + 50;
-                const available_slots = number <= 60 ? -1 : Math.floor(Math.random() * 100) + 50;
-
-                const event: Event = {
-                    _id : new ObjectId(),
-                    event_name : result[eventValue].name,
-                    host : {
-                        id : user._id,
-                        name : user.name,
-                    },
-                    date,
-                    time,
-                    tags,
-                    formatted_address,
-                    location : {
-                        type : 'Point',
-                        coordinates: location.coordinates
-                    },
-                    city,
-                    rsvp : [],
-                    available_slots,
-                    organizations: [],
-                    online : positive
-                }
-                console.log(event);
-                events.push(event);
-                if(events.length === 5) {
-                    database.insertManyEvents(events);
-                    events.splice(0, events.length);
-                }
-            }
-        }
-    });
-
-    res.status(200).json('done');
-}
-
-export default { /*massImport,*/ updateEvent, registerEvent, getEvents, searchByTags, rsvp, nearMe, checkLocation, validateLocation }
+export default { updateEvent, registerEvent, getEvents, searchByTags, rsvp, nearMe, checkLocation, validateLocation }
