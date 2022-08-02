@@ -143,7 +143,10 @@ const cityLocation = async(city: string) => {
 const nearMe = async(user: user) => {
     const results = await collections.event.find({
         $and : [
-            { available_slots : { $gt : 0},
+            { $or : [
+                { available_slots : { $gt : 0}},
+                { available_slots : { $eq : -1}}
+            ],
             location : {
                 $near : {
                     $geometry : {
@@ -152,9 +155,10 @@ const nearMe = async(user: user) => {
                     },
                     $maxDistance : user.base_location.distance
                 }
-                }
-            }
-        ]}).sort({ date : 1 }).toArray() as Event[];
+            }}
+        ]
+    }).sort({ date : 1 }).toArray() as Event[];
+    console.log(results);
     return results
 }
 
