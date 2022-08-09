@@ -20,10 +20,9 @@ const collections = {
 
 // indexed query for searching for cities that are not case sensitive
 //{ $text : { $search : "SalT lake CiTY", $caseSensitive: false }}
-// collections.event.createIndex({ location : '2dsphere' });
-// collections.geocode.createIndex({ location : '2dsphere'});
-
-collections.geocode.createIndex({ 'location.city' : "text" });
+collections.event.createIndex({ location : '2dsphere' });
+collections.event.createIndex({ online: 1 });
+collections.geocode.createIndex({ location : '2dsphere'});
 
 const eventsToday = async(date: Date) => {
     let results: Event[];
@@ -162,7 +161,13 @@ const nearMe = async(user: user) => {
     return results
 }
 
-const getEvents = async(query: Object[]): Promise<Event[]> => { return await collections.event.aggregate(query).project({ location : 0, city : 0, rsvp : 0, dist : 0}).toArray() as Event[]; };
+const getEvents = async(aggregate: Object[] | undefined, index: {} | undefined): Promise<Event[]> => { 
+    if(index !== undefined)
+        return await collections.event.find(index).project({ location : 0, city : 0, rsvp : 0, dist : 0}).toArray() as Event[];
+    if(aggregate !== undefined)
+        return await collections.event.aggregate(aggregate).project({ location : 0, city : 0, rsvp : 0, dist : 0}).toArray() as Event[];
+    return [];
+};
 
 
 const searchByTags = async(res: Response, city: string, radius : number, filters: string[]):Promise<Response> => { 

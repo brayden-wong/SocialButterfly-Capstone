@@ -7,7 +7,9 @@ const mongo_options = {
     useNewUrlParser: true,
     socketTimeoutMS: 30000,
     keepAlive: true,
-    retryWrites: true
+    retryWrites: true,
+    minPoolSize: 10,
+    maxPoolSize: 10
 };
 
 const mongo = {
@@ -21,9 +23,11 @@ const mongo = {
         geocode : process.env.mongo_geocodes,
         past_events : process.env.mongo_past_events
     },
-    url : `mongodb+srv://${process.env.mongo_username}:${process.env.mongo_password}@cluster0.bftq6du.mongodb.net/${process.env.mongo_database}`
-    // url : 'mongodb://localhost/SocialButterfly'
+    // url : `mongodb+srv://${process.env.mongo_username}:${process.env.mongo_password}@cluster0.bftq6du.mongodb.net/${process.env.mongo_database}`
+    // url : 'mongodb+srv://localhost/SocialButterfly'
+    url: String(process.env.mongo_url)
 };
+console.log(mongo.url);
 
 const server = {
     port : String(process.env.port),

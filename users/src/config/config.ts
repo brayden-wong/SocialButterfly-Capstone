@@ -24,7 +24,9 @@ const mongoOptions = {
     useNewUrlParser: true,
     socketTimeoutMS: 30000,
     keepAlive: true,
-    retryWrites: true
+    retryWrites: true,
+    minPoolSize: 10,
+    maxPoolSize: 10
 };
 
 const MONGO_USERNAME = process.env.MONGO_USERNAME;
@@ -43,8 +45,7 @@ const mongo = {
         MONGO_USERS,
         tokens : process.env.MONGO_JSON_WEB_TOKENS
     },
-
-    url: `mongodb+srv://${MONGO_USERNAME}:${MONGO_PASSWORD}@cluster0.qavvp4s.mongodb.net/${MONGO_HOST}/${MONGO_DATABASE}`
+    url: String(process.env.mongo_url)
 };
 
 const regex = {

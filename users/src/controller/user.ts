@@ -103,11 +103,13 @@ const login = async(req : Request, res : Response): Promise<Response> => {
         username : String(req.body.username),
         password : String(req.body.password),
     };
-
+    console.log(login);
     //role based authorization strats
+    console.log(config.regex.email.test(login.username));
     if(config.regex.email.test(login.username)) {
         if(await database.getEmail(login.username)) {
             const user = await database.getUserByEmail(login.username) as User;
+            console.log(user);
             if(user !== undefined && bcrypt.compareSync(login.password, user.password)) {
                 const token = jwt.sign({ id : String(user._id)}, config.server.token.secret, { expiresIn : 60 * 60 });
                 req.headers['authorization'] = token;

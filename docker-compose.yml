@@ -14,7 +14,7 @@ services:
     networks:
       - social-butterfly
     deploy:
-      replicas: 2
+      replicas: 1
     restart: always
   
   events:
@@ -26,7 +26,20 @@ services:
     networks:
       - social-butterfly
     deploy:
-      replicas: 2
+      replicas: 1
+    restart: always
+  
+  socialButterfly:
+    image: mongo:latest
+    networks:
+      - social-butterfly
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: password
+    ports:
+      - 27017:27017
+    volumes:
+      - socialButterfly:/data/db
     restart: always
 
   consumer:
@@ -39,6 +52,8 @@ services:
       - 3002:3002
     networks:
       - social-butterfly
+    volumes:
+      - queue:/var/lib/queue
     depends_on:
       - rabbitmq
     restart: always
@@ -74,3 +89,9 @@ services:
       - ~/.docker-conf/rabbitmq/data/:/var/lib/rabbitmq/
       - ~/.docker-conf/rabbitmq/log/:/var/log/rabbitmq
     restart: always
+
+volumes:
+  socialButterfly:
+    external: true
+  queue:
+    external: true

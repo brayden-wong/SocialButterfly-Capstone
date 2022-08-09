@@ -3,4 +3,5 @@ export default interface query {
     dates : Date[],
     city : string,
     radius : number
+    online?: boolean
 }

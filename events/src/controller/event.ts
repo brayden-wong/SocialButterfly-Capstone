@@ -10,20 +10,11 @@ import query from '../interfaces/query';
 import user from '../interfaces/user';
 import verify from '../middleware/verify';
 import eureka from '../eureka-helper';
+import { param } from '../routes/event';
 
 setTimeout(() => {
     eureka.registerService('events', Number.parseInt(config.server.port));
 }, 15000);
-
-setInterval(async () => { 
-    let date = new Date(); 
-    console.log('date:', date.toLocaleTimeString());
-    console.log('hour:', date.getUTCHours()); 
-    if((date.getHours() === 23)) {
-        console.log('checking');
-        database.sendRSVP(new Date(date.getFullYear(), date.getMonth(), date.getDate() + 7));
-    }
-}, 60000);
 
 const getMeters = (miles: number) => {
     return miles * 1609.344;
@@ -204,6 +195,18 @@ const registerEvent = async(req : Request, res : Response): Promise<Response> =>
 
     if(checkParameters(event))
         return res.status(401).json('one or many fields are undefined');
+    
+    if(event.online) {
+        //@ts-ignore
+        delete event.location;
+        //@ts-ignore
+        delete event.city;
+        //@ts-ignore
+        delete event.formatted_address;
+
+        await database.insertEvent(event);
+        return res.status(200).json('event successfully added');
+    }
 
     if(await database.checkLocation(event.city)) {
         /*
@@ -244,13 +247,35 @@ const getEvents = async(req: Request, res: Response): Promise<Response> => {
         tags : req.body.tags === undefined ? [] : req.body.tags,
         dates : req.body.dates === undefined ? [new Date(temp.getFullYear(), temp.getMonth(), temp.getDate())] : req.body.dates.length === 2 ? req.body.dates : [new Date(req.body.dates)], //req.body.dates.length === 2 ? req.body.dates : req.body.dates,
         city : String(req.body.city),
-        radius : req.body.radius === undefined ? 50 : Number.parseInt(req.body.radius)
+        radius : req.body.radius === undefined ? 50 : Number.parseInt(req.body.radius),
+        online : req.body.online === undefined ? undefined : req.body.online
     }; 
 
     const city = await database.cityLocation(parameters.city);
 
     if(city === null) 
         return res.status(500).json('that city doesn\'t exist');
+    
+    if(parameters.online === true) {
+        const query = {
+            $and : [
+                parameters.tags.length === 0 ? { tags : { $exists : true, $not : { $size : 0 }}} : { tags : { $in : parameters.tags }},
+                parameters.dates.length === 2 ? { $and : [
+                    { date : { $gte : new Date(parameters.dates[0])}},
+                    { date : { $lte : new Date(parameters.dates[1])}}
+                ]} : {
+                    $and : [
+                        { date : { $gte : parameters.dates[0]}},
+                        { date : { $lt : new Date(parameters.dates[0].getFullYear(), parameters.dates[0].getMonth(), parameters.dates[0].getDate() + 1)}}
+                    ]
+                },
+                { online : true }
+            ]
+        }
+
+        return res.status(200).json(await database.getEvents(undefined, query));
+    }
+
     const query = [{
         $geoNear : {
             near : { type : 'Point', coordinates : [city.location.coordinates[0], city.location.coordinates[1]]},
@@ -264,6 +289,7 @@ const getEvents = async(req: Request, res: Response): Promise<Response> => {
                     { date : { $lt : new Date(parameters.dates[0].getFullYear(), parameters.dates[0].getMonth(), parameters.dates[0].getDate() + 1)}}
                 ]},
                 { city : new RegExp(parameters.city, 'i')},
+                { online : false }
             ]},
             maxDistance : getMeters(parameters.radius),
             distanceField : 'dist.calculated',
@@ -271,7 +297,7 @@ const getEvents = async(req: Request, res: Response): Promise<Response> => {
         }
     }];
 
-    return res.status(200).json(await database.getEvents(query));
+    return res.status(200).json(await database.getEvents(query, undefined));
     
 }
 
