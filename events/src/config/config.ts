@@ -27,7 +27,6 @@ const mongo = {
     // url : 'mongodb+srv://localhost/SocialButterfly'
     url: String(process.env.mongo_url)
 };
-console.log(mongo.url);
 
 const server = {
     port : String(process.env.port),

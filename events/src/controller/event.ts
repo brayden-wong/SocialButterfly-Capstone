@@ -17,6 +17,8 @@ setTimeout(() => {
 }, 15000);
 
 const getMeters = (miles: number) => {
+    console.log(miles);
+    console.log('conversion:', miles * 1609.344);
     return miles * 1609.344;
 }
 
@@ -250,12 +252,18 @@ const getEvents = async(req: Request, res: Response): Promise<Response> => {
         radius : req.body.radius === undefined ? 50 : Number.parseInt(req.body.radius),
         online : req.body.online === undefined ? undefined : req.body.online
     }; 
+    if(parameters.radius > 50)
+        return res.status(500).json({
+            error: 'radius is too large'
+        });
 
     const city = await database.cityLocation(parameters.city);
 
     if(city === null) 
         return res.status(500).json('that city doesn\'t exist');
     
+    console.log(parameters.online);
+    console.log(getMeters(parameters.radius));
     if(parameters.online === true) {
         const query = {
             $and : [
@@ -272,7 +280,6 @@ const getEvents = async(req: Request, res: Response): Promise<Response> => {
                 { online : true }
             ]
         }
-
         return res.status(200).json(await database.getEvents(undefined, query));
     }
 

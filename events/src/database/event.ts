@@ -17,6 +17,18 @@ const collections = {
     geocode : db.collection(String(config.mongo.collections.geocode)),
     past_event : db.collection(String(config.mongo.collections.past_events))
 };
+let looper = true;
+
+const checkTime = setInterval(async () => { 
+    console.log(looper);
+    let date = new Date();
+    if(date.getHours() === 18 && looper) {
+        sendRSVP(new Date(date.getFullYear(), date.getMonth(), date.getDate() + 7));
+        looper = false;
+    }
+    if(date.getHours() === 24)
+        looper = true;
+}, 60000);
 
 // indexed query for searching for cities that are not case sensitive
 //{ $text : { $search : "SalT lake CiTY", $caseSensitive: false }}
@@ -80,7 +92,7 @@ const sendRSVP = async (date : Date) => {
                     to : events[i].rsvp[k],
                     subject : 'Social Butterfly RSVP Notification',
                     html : `Hello ${user.name}, <br> Thank you for signing up early for the event!  Just a reminder, the event you signed up for is here in 1 week<br>`
-                    + `Event: ${events[i].event_name}<br>Date: ${events[i].date}<br>Time: ${events[i].time}`
+                    + `Event: ${events[i].event_name}<br>Date: ${events[i].date.toDateString()}<br>Time: ${events[i].time}`
                     + '<br><br>'
                     + '©SocialButterfly'
                 };
@@ -157,18 +169,20 @@ const nearMe = async(user: user) => {
             }}
         ]
     }).sort({ date : 1 }).toArray() as Event[];
-    console.log(results);
     return results
 }
 
 const getEvents = async(aggregate: Object[] | undefined, index: {} | undefined): Promise<Event[]> => { 
-    if(index !== undefined)
+    if(index !== undefined) {
+        console.log('find');
         return await collections.event.find(index).project({ location : 0, city : 0, rsvp : 0, dist : 0}).toArray() as Event[];
-    if(aggregate !== undefined)
+    }
+    if(aggregate !== undefined) {
+        console.log('aggregate');
         return await collections.event.aggregate(aggregate).project({ location : 0, city : 0, rsvp : 0, dist : 0}).toArray() as Event[];
+    }
     return [];
 };
-
 
 const searchByTags = async(res: Response, city: string, radius : number, filters: string[]):Promise<Response> => { 
     const events: Event[] = [];
@@ -243,7 +257,6 @@ const rsvp = async(res: Response, id: ObjectId, user : user): Promise<Response> 
 const validateLocation = async(user: user): Promise<user> => {
     const city = user.base_location.city.split(',')[0];
     const result = await collections.geocode.findOne({ 'location.city' : new RegExp(city, 'i') }) as Location;
-    console.log(result);
     if(result !== null) {
         user.base_location.coords = result.location.coordinates;
         return user;
@@ -253,7 +266,6 @@ const validateLocation = async(user: user): Promise<user> => {
 
     if(response === null)
         return user;
-    console.log(response.data.address_components);
     const location: Location = {
         _id : new ObjectId(),
         location : {
