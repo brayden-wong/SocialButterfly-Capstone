@@ -294,4 +294,8 @@ const getLocations = async() => {return await collections.geocode.find().toArray
 
 const insertManyEvents = (events: Event[]) => {collections.event.insertMany(events);}
 
-export default { updateEvent, insertManyEvents, getLocations, checkLocation, insertEvent, insertCity, validateLocation, eventsThisMonth, doTagsMatch, getEvents, sendRSVP, searchByTags, rsvp, cityLocation, nearMe };
+const oneEvent = async(id: string) => {
+    return await collections.event.findOne({ _id : new ObjectId(id) }) as Event;
+}
+
+export default { oneEvent, updateEvent, insertManyEvents, getLocations, checkLocation, insertEvent, insertCity, validateLocation, eventsThisMonth, doTagsMatch, getEvents, sendRSVP, searchByTags, rsvp, cityLocation, nearMe };

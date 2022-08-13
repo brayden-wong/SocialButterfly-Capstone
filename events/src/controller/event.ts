@@ -1,6 +1,7 @@
 import { Response, Request, response } from 'express';
 import { ObjectId } from 'mongodb';
 import { request } from '../request.helper';
+import amqp from 'amqplib';
 import Event from '../interfaces/event';
 import Location from '../interfaces/location';
 import config from '../config/config';
@@ -10,7 +11,6 @@ import query from '../interfaces/query';
 import user from '../interfaces/user';
 import verify from '../middleware/verify';
 import eureka from '../eureka-helper';
-import { param } from '../routes/event';
 
 setTimeout(() => {
     eureka.registerService('events', Number.parseInt(config.server.port));
@@ -210,6 +210,30 @@ const registerEvent = async(req : Request, res : Response): Promise<Response> =>
         return res.status(200).json('event successfully added');
     }
 
+    const followerList = async(list: string[], name: string) => {
+        if(list.length === 0)
+            return;
+        console.log(list);
+
+        const url = config.server.queue;
+        const connection = await amqp.connect(url);
+        const channel = await connection.createChannel();
+
+        channel.assertQueue('follow_list', { durable: true});
+        
+        list.forEach(email => {
+            let options = {
+                from : '',
+                to: email,
+                subject: 'Social Butterfly Event Notification',
+                html : `Hello! This is a friendly notification that ${name} has created a new event.<br>
+                <a href='http://localhost:3001/getOne?id=${event._id}>click here</a> to see the event`
+            }
+            
+            channel.sendToQueue('follow_list', Buffer.from(JSON.stringify(options)));
+        })
+    }
+
     if(await database.checkLocation(event.city)) {
         /*
             After this if statement you need to check to see if there are similar 
@@ -219,6 +243,11 @@ const registerEvent = async(req : Request, res : Response): Promise<Response> =>
         if(response !== null)
             event = response;
         if(await validateEvent(event)) {
+            const userData = await request(`http://gateway:8080/users/getUser?id=${event.host.id}`, 'get');
+            if(userData === undefined) 
+                return res.status(500).json('an error has occurred');
+            if(userData !== null)
+                followerList(userData.data.data.follow_list, event.host.name);
             await database.insertEvent(event);
             return res.status(200).json({
                 message : '😄 event successfully added',
@@ -401,4 +430,8 @@ const updateEvent = async(req: Request, res: Response): Promise<Response> => {
     return await database.updateEvent(res, newEmail, oldEmail);
 }
 
-export default { updateEvent, registerEvent, getEvents, searchByTags, rsvp, nearMe, checkLocation, validateLocation }
+const getOneEvent = async(req: Request, res: Response) => {
+    res.status(200).json(await database.oneEvent(String(req.query.id)));
+}
+
+export default { updateEvent, registerEvent, getEvents, searchByTags, rsvp, nearMe, checkLocation, validateLocation, getOneEvent }

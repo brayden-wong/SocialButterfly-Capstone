@@ -4,6 +4,7 @@ import verify from '../middleware/verify';
 
 const router = express.Router();
 
+router.get('/oneEvent?:id', controller.getOneEvent);
 router.get('/events', controller.getEvents);
 router.get('/search', controller.searchByTags);
 router.get('/near', controller.nearMe);
