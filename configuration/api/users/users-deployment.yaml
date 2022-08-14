@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: users
+  name: users
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: users
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: users
+    spec:
+      containers:
+      - image: braydenwongcode/socialbutterfly-users:latest
+        name: socialbutterfly-users
+        resources: {}
+        livenessProbe:
+          httpGet: 
+            path: /livenessCheck
+            port: 3000
+        readinessProbe:
+          httpGet:
+            path: /livenessCheck
+            port: 3000
+        ports:
+        - name: http
+          containerPort: 3000
+status: {}

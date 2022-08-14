@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: eureka
+  name: eureka
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: eureka
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: eureka
+    spec:
+      containers:
+        - image: braydenwongcode/socialbutterfly-eureka:latest
+          name: eureka
+          resources: {}
+status: {}

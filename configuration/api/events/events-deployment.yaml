@@ -1,7 +1,6 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  creationTimestamp: null
   labels:
     app: events
   name: events
@@ -13,7 +12,6 @@ spec:
   strategy: {}
   template:
     metadata:
-      creationTimestamp: null
       labels:
         app: events
     spec:
@@ -21,4 +19,15 @@ spec:
       - image: braydenwongcode/socialbutterfly-events:latest
         name: socialbutterfly-events
         resources: {}
+        livenessProbe:
+          httpGet: 
+            path: /livenessCheck
+            port: 3001
+        readinessProbe:
+          httpGet:
+            path: /livenessCheck
+            port: 3001
+        ports:
+        - name: http
+          containerPort: 3001
 status: {}

@@ -6,7 +6,7 @@ metadata:
   name: gateway
 spec:
   ports:
-  - name: 8080-8080
+  - name: api-gateway
     port: 8080
     protocol: TCP
     targetPort: 8080

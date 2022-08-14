@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: users
+  name: users
+spec:
+  ports:
+  - name: user-api
+    port: 3000
+  selector:
+      app: users
+status: {}

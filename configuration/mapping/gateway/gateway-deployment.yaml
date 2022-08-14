@@ -17,6 +17,6 @@ spec:
     spec:
       containers:
       - image: braydenwongcode/socialbutterfly-gateway:latest
-        name: socialbutterfly-gateway
+        name: gateway
         resources: {}
 status: {}

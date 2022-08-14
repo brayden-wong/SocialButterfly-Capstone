@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: consumer
+  name: consumer
+spec: 
+  replicas: 1
+  selector:
+    matchLabels:
+      app: consumer
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: consumer
+    spec:
+      containers: 
+        - image: braydenwongcode/socialbutterfly-consumer:latest
+          name: consumer
+          resources: {}
+          livenessProbe:
+            httpGet: 
+              path: /liveness
+              port: 3002
+          readinessProbe:
+            httpGet:
+              path: /liveness
+              port: 3002
+          ports:
+          - name: http
+            containerPort: 3002
