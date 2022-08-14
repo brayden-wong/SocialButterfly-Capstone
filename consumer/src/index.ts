@@ -93,4 +93,8 @@ setTimeout(() => {
     }, 10000);
 }, 10000);
 
+app.get('/liveness', (req, res) => {
+    return res.sendStatus(200);
+});
+
 app.listen(config.port);

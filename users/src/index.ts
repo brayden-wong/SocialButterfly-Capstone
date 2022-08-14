@@ -20,5 +20,9 @@ app.use((req, res, next) => {
 
 app.use('/', routes);
 
+app.get('/livenessCheck', (req, res) => {
+    return res.sendStatus(200);
+});
+
 
 app.listen(3000);
