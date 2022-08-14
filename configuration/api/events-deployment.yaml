@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: events
+  name: events
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: events
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: events
+    spec:
+      containers:
+      - image: braydenwongcode/socialbutterfly-events:latest
+        name: socialbutterfly-events
+        resources: {}
+status: {}
