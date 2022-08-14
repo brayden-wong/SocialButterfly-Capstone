@@ -9,7 +9,6 @@ import Token from '../interfaces/token';
 import Login from '../interfaces/login';
 import config from '../config/config';
 import token from '../middleware/verify';
-import amqp from 'amqplib';
 import eureka from '../eureka-helper';
 
 setTimeout(() => {
@@ -150,22 +149,13 @@ const resetPassword = async(req : Request, res : Response): Promise<Response> =>
         });
     let account = await database.getUserByEmail(username.username);
     if(account !== undefined) {
-        const url = config.server.queue || 'amqp://localhost';
-        const connection = await amqp.connect(url);
-        const channel = await connection.createChannel();
-
-        channel.assertQueue('reset password', {durable : false});
-        let link = 'http://' + req.get('host') + '/reset?id=' + account._id;
-
-        let options = {
-            to : account.email,
+        const link = 'http://' + req.get('host') + '/reset?id=' + account._id;
+        request('http://gateway:8080/consumer/sendmail', 'post', undefined, {
             from : '',
-            subject : 'reset password',
-            html : 'Hello, <br> Please click the link to reset your password.<br><a href=' + link + '>Click here to reset your password</a>'
-        };
-        
-        channel.sendToQueue('reset password', Buffer.from(JSON.stringify(options)));
-
+            to: account.email,
+            subject: 'password reset',
+            html: 'Hello, <br> Please click the link to reset your password.<br><a href=' + link + '>Click here to reset your password</a>'
+        })
         return res.status(200).json({
             message : 'please check your email to reset your password'
         })
@@ -214,26 +204,19 @@ const updateUserInformation = async(req : Request, res : Response): Promise<Resp
         return res.status(200).json({
             message : 'profile was successfully updated'
         });
-    
-    const sendToQueue = async(req : Request) => {
-        const url = config.server.queue || 'amqp://localhost';
-        const connection = await amqp.connect(url);
-        const channel = await connection.createChannel();
-        await channel.assertQueue('verify account', {durable : true});
-        let link = 'http://' + req.get('host') + '/verify?id=' + user._id.toHexString();
-    
-        let options = {
-            from : '',
-            to : user.email,
-            subject : 'Social Butterfly Account Verification',
-            html : 'Hello, <br> Please Click on the link to verify your account. <br>' + 
-                '<a href=' + link + '>Click here to verify your account</a>'
-        };
 
-        channel.sendToQueue('verify account', Buffer.from(JSON.stringify(options)));
+    let link = 'http://' + req.get('host') + '/verify?id=' + user._id.toHexString();
+    let options = {
+        from : '',
+        to : user.email,
+        subject : 'Social Butterfly Account Verification',
+        html : 'Hello, <br> Please Click on the link to verify your account. <br>' + 
+            '<a href=' + link + '>Click here to verify your account</a>'
     };
 
-    await sendToQueue(req);
+    request('http://gateway:8080/consumer/sendmail', 'post', undefined, {
+        options
+    })
 
     await request('http://gateway:8080/events/updateEvent', 'patch', undefined, { newEmail : newUser.email, oldEmail : user.email });
     return res.status(200).json('profile was successfully updated');

@@ -3,7 +3,7 @@ kind: PersistentVolumeClaim        # Create a PersistentVolumeClaim to request a
 metadata:                          # Claim name and labels
   name: mongo-db-claim
   labels:
-    app: lendbuddy-api
+    app: SocialButterfly
 spec:                              # Access mode and resource limits
   accessModes:
     - ReadWriteOnce                # ReadWriteOnce means the volume can be mounted as read-write by a single Node
@@ -14,34 +14,34 @@ spec:                              # Access mode and resource limits
 apiVersion: v1  # API version
 kind: Service # Type of kubernetes resource
 metadata:
-  name: mongo-db-app-mongo  # Name of the resource
+  name: SocialButterfly  # Name of the resource
   labels:   # Labels that will be applied to the resource
-    app: mongo-db-app
+    app: SocialButterfly
 spec:
   ports:
   - port: 27017
   selector:   # Selects any Pod with labels `app=mongo-db-app,tier=mongo`
-    app: mongo-db-app
+    app: SocialButterfly
     tier: mongo
   clusterIP: None
 ---
 apiVersion: apps/v1
 kind: Deployment                    # Type of the kubernetes resource
 metadata:
-  name: mongo-db-app-mongo
+  name: SocialButterfly
   labels:                           # Labels applied to this deployment
-    app: mongo-db-app
+    app: SocialButterfly
 spec:
   selector:
     matchLabels:                    # This deployment applies to the Pods matching the specified labels
-      app: mongo-db-app
+      app: SocialButterfly
       tier: mongo
   strategy:
     type: Recreate
   template:                         # Template for the Pods in this deployment
     metadata:
       labels:
-        app: mongo-db-app
+        app: SocialButterfly
         tier: mongo
     spec:
       containers:

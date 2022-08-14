@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 import config from '../config/config';
 import user from '../interfaces/user';
 import token from '../interfaces/token';
-import amqp from 'amqplib';
+import { request } from '../request.helper';
 import jwt from 'jsonwebtoken';
 
 const client = new MongoClient(config.mongo.url, config.mongo.options);
@@ -30,25 +30,14 @@ const addUser = async(req : Request, res: Response, user: user): Promise<Respons
         });
     } else {
         await collections.users.insertOne(user);
-
-        const sendToQueue = async(req : Request) => {
-            const url = config.server.queue || 'amqp://localhost';
-            const connection = await amqp.connect(url);
-            const channel = await connection.createChannel();
-            await channel.assertQueue('verify account', {durable : true});
-            let link = 'http://' + req.get('host') + '/verify?id=' + user._id.toHexString();
-        
-            let options = {
-                from : '',
-                to : user.email,
-                subject : 'Social Butterfly Account Activation',
-                html : 'Hello, <br> Please Click on the link to verify your account. <br><a href=' + link + '>Click here to verify your account</a>'
-            };
-
-            channel.sendToQueue('verify account', Buffer.from(JSON.stringify(options)));
-        };
-
-        await sendToQueue(req);
+        const link = 'http://' + req.get('host') + '/verify?id=' + user._id.toHexString();
+        const html = 'Hello, <br> Please Click on the link to verify your account. <br><a href=' + link + '>Click here to verify your account</a>'
+        request('http://gateway:8080/consumer/sendmail', 'post', undefined, {
+            from : '',
+            to: user.email,
+            subject: 'Social Butterfly Account Activation',
+            html: html
+        });
         return res.status(200).json({
             user
         });

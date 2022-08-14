@@ -1,7 +1,6 @@
 import { Response, Request, response } from 'express';
 import { ObjectId } from 'mongodb';
 import { request } from '../request.helper';
-import amqp from 'amqplib';
 import Event from '../interfaces/event';
 import Location from '../interfaces/location';
 import config from '../config/config';
@@ -213,13 +212,6 @@ const registerEvent = async(req : Request, res : Response): Promise<Response> =>
     const followerList = async(list: string[], name: string) => {
         if(list.length === 0)
             return;
-        console.log(list);
-
-        const url = config.server.queue;
-        const connection = await amqp.connect(url);
-        const channel = await connection.createChannel();
-
-        channel.assertQueue('follow_list', { durable: true});
         
         list.forEach(email => {
             let options = {
@@ -229,9 +221,11 @@ const registerEvent = async(req : Request, res : Response): Promise<Response> =>
                 html : `Hello! This is a friendly notification that ${name} has created a new event.<br>
                 <a href='http://localhost:3001/getOne?id=${event._id}>click here</a> to see the event`
             }
-            
-            channel.sendToQueue('follow_list', Buffer.from(JSON.stringify(options)));
-        })
+
+            request('http://gateway:8080/consumer/sendmail', 'post', undefined, {
+                options
+            });
+        });
     }
 
     if(await database.checkLocation(event.city)) {

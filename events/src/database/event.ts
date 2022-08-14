@@ -5,7 +5,6 @@ import Event from '../interfaces/event';
 import Location from '../interfaces/location';
 import range from '../interfaces/range';
 import user from '../interfaces/user';
-import amqp from 'amqplib';
 import { request } from '../request.helper';
 
 const client = new MongoClient(config.mongo.url, config.mongo.options);
@@ -68,10 +67,6 @@ const sendRSVP = async (date : Date) => {
     }).toArray() as Event[];
 
     const send = async(events: Event[]) => {
-        const url = config.server.queue || 'amqp://localhost';
-        const connection = await amqp.connect(url);
-        const channel = await connection.createChannel();
-        await channel.assertQueue('rsvp', {durable : true});
 
         const emails: string[] = [];
         events.forEach( event => {
@@ -96,7 +91,9 @@ const sendRSVP = async (date : Date) => {
                     + '<br><br>'
                     + '©SocialButterfly'
                 };
-                channel.sendToQueue('event reminder', Buffer.from(JSON.stringify(options)));
+                request('http://gateway:8080/consumer/sendmail', 'post', undefined, {
+                    options
+                })
             }    
         }   
     }
@@ -232,11 +229,6 @@ const rsvp = async(res: Response, id: ObjectId, user : user): Promise<Response> 
         await collections.event.replaceOne({ _id : id }, event);
 
         const send = async() => {
-            const url = config.server.queue || 'amqp://localhost';
-            const connection = await amqp.connect(url);
-            const channel = await connection.createChannel();
-            await channel.assertQueue('register account', {durable : true});
-        
             let options = {
                 from : '',
                 to : user.email,
@@ -245,8 +237,9 @@ const rsvp = async(res: Response, id: ObjectId, user : user): Promise<Response> 
                 + 'You will receive a reminder email 1 week before the event.<br><br>'
                 + '©SocialButterfly'
             };
-
-            channel.sendToQueue('rsvp', Buffer.from(JSON.stringify(options)));
+            request('http://gateway:8080/consumer/sendmail', 'post', undefined, {
+                options
+            });
         }
         await send();
 
