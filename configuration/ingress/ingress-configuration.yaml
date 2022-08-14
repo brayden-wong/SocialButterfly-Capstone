@@ -1,0 +1,12 @@
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: SocialButterfly-ingress
+spec:
+  rules:
+  - host: socialbutterfly.com
+    http:
+      paths:
+      - backend:
+          serviceName: gateway-svc
+          servicePort: 8080

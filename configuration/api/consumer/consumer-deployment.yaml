@@ -3,13 +3,12 @@ kind: Deployment
 metadata:
   labels:
     app: consumer
-  name: consumer
+  name: consumer-deployment
 spec: 
   replicas: 1
   selector:
     matchLabels:
       app: consumer
-  strategy: {}
   template:
     metadata:
       labels:
@@ -17,16 +16,6 @@ spec:
     spec:
       containers: 
         - image: braydenwongcode/socialbutterfly-consumer:latest
-          name: consumer
-          resources: {}
-          livenessProbe:
-            httpGet: 
-              path: /liveness
-              port: 3002
-          readinessProbe:
-            httpGet:
-              path: /liveness
-              port: 3002
+          name: consumer-server
           ports:
-          - name: http
-            containerPort: 3002
+          - containerPort: 3002

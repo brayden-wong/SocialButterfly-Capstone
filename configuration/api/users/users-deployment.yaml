@@ -3,13 +3,12 @@ kind: Deployment
 metadata:
   labels:
     app: users
-  name: users
+  name: users-deployment
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: users
-  strategy: {}
   template:
     metadata:
       labels:
@@ -17,17 +16,6 @@ spec:
     spec:
       containers:
       - image: braydenwongcode/socialbutterfly-users:latest
-        name: socialbutterfly-users
-        resources: {}
-        livenessProbe:
-          httpGet: 
-            path: /livenessCheck
-            port: 3000
-        readinessProbe:
-          httpGet:
-            path: /livenessCheck
-            port: 3000
+        name: user-server
         ports:
-        - name: http
-          containerPort: 3000
-status: {}
+        - containerPort: 3000

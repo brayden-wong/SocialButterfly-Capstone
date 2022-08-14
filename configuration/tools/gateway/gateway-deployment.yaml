@@ -3,13 +3,12 @@ kind: Deployment
 metadata:
   labels:
     app: gateway
-  name: gateway
+  name: gateway-deployment
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: gateway
-  strategy: {}
   template:
     metadata:
       labels:
@@ -18,5 +17,5 @@ spec:
       containers:
       - image: braydenwongcode/socialbutterfly-gateway:latest
         name: gateway
-        resources: {}
-status: {}
+        ports:
+          - containerPort: 8080

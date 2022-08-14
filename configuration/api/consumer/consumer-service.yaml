@@ -6,8 +6,7 @@ metadata:
   name: consumer-svc
 spec:
   selector:
-    app: consumer-deployment
+    app: consumer
   ports:
-    - name: consumer-api
+    - targetedPort: 3002
       port: 3002
-status: {}
