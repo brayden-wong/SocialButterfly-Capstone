@@ -6,5 +6,5 @@ spec:
   selector:
     app: events
   ports:
-  - targetedPort: 3001
+  - targetPort: 3001
     port: 3001

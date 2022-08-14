@@ -8,5 +8,5 @@ spec:
   selector:
     app: consumer
   ports:
-    - targetedPort: 3002
+    - targetPort: 3002
       port: 3002
