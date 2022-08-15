@@ -1,5 +1,5 @@
 import express, { Request, Response } from 'express';
-import { registerService } from './helper/eureka.connection';
+import registerService from './helper/eureka.connection';
 import mailer from 'nodemailer';
 import config from './config/config';
 
@@ -30,7 +30,7 @@ const app = express();
 // }
 
 setTimeout(() => {
-    registerService('consumer', Number.parseInt(String(config.port)));
+    registerService.registerService('consumer', Number.parseInt(String(config.port)));
 }, 15000);
 
 

@@ -3,13 +3,12 @@ kind: Deployment
 metadata:
   labels:
     app: eureka
-  name: eureka
+  name: eureka-deployment
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: eureka
-  strategy: {}
   template:
     metadata:
       labels:
@@ -17,6 +16,6 @@ spec:
     spec:
       containers:
         - image: braydenwongcode/socialbutterfly-eureka:latest
-          name: eureka
-          resources: {}
-status: {}
+          name: eureka-server
+          ports:
+            - containerPort: 8761
