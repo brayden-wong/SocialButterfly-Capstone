@@ -5,13 +5,15 @@ import verify from '../middleware/verify';
 const router = express.Router();
 
 router.get('/oneEvent?:id', controller.getOneEvent);
-router.get('/events', controller.getEvents);
 router.get('/search', controller.searchByTags);
 router.get('/near', controller.nearMe);
 router.get('/checklocation', controller.checkLocation);
+
 router.post('/rsvp', verify.verify, controller.rsvp);
 router.post('/validatelocation', controller.validateLocation);
 router.post('/register', verify.verify, controller.registerEvent);
+router.post('/events', controller.getEvents);
+
 router.patch('/updateEvent', controller.updateEvent);
 // router.get('/massimport', controller.massImport);
 

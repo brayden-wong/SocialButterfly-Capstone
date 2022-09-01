@@ -29,4 +29,5 @@ export async function request(url: string, method: string, params?: {}, data?: {
         method: method
     });
     return response;
+
 }

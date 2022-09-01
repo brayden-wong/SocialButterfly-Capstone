@@ -54,8 +54,6 @@ services:
       - social-butterfly
     volumes:
       - queue:/var/lib/queue
-    depends_on:
-      - rabbitmq
     restart: always
 
   gateway:

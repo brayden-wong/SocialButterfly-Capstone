@@ -31,13 +31,16 @@ const addUser = async(req : Request, res: Response, user: user): Promise<Respons
     } else {
         await collections.users.insertOne(user);
         const link = 'http://' + req.get('host') + '/verify?id=' + user._id.toHexString();
-        const html = 'Hello, <br> Please Click on the link to verify your account. <br><a href=' + link + '>Click here to verify your account</a>'
+        const html = 'Hello, <br> Please Click on the link to verify your account. <br><a href=' + link + '>Click here to verify your account</a>';
+        console.log('about to fucking kill myself');
         request('http://gateway:8080/consumer/sendmail', 'post', undefined, {
             from : '',
             to: user.email,
             subject: 'Social Butterfly Account Activation',
             html: html
         });
+        
+
         return res.status(200).json({
             user
         });

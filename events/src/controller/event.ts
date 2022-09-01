@@ -267,6 +267,7 @@ const registerEvent = async(req : Request, res : Response): Promise<Response> =>
 }
 
 const getEvents = async(req: Request, res: Response): Promise<Response> => {
+    console.log(req.body);
     const temp = new Date();
     const parameters: query = {
         tags : req.body.tags === undefined ? [] : req.body.tags,
@@ -318,7 +319,6 @@ const getEvents = async(req: Request, res: Response): Promise<Response> => {
                     { date : { $gte : parameters.dates[0]}},
                     { date : { $lt : new Date(parameters.dates[0].getFullYear(), parameters.dates[0].getMonth(), parameters.dates[0].getDate() + 1)}}
                 ]},
-                { city : new RegExp(parameters.city, 'i')},
                 { online : false }
             ]},
             maxDistance : getMeters(parameters.radius),

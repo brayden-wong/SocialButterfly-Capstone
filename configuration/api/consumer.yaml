@@ -4,7 +4,7 @@ metadata:
   labels:
     app: consumer
   name: consumer-deployment
-spec: 
+spec:
   replicas: 1
   selector:
     matchLabels:
@@ -14,21 +14,20 @@ spec:
       labels:
         app: consumer
     spec:
-      containers: 
-        - image: braydenwongcode/socialbutterfly-consumer:latest
-          name: consumer-server
+      containers:
+        - name: consumer-server
+          image: braydenwongcode/socialbutterfly-consumer:latest
           ports:
-          - containerPort: 3002
+          - containerPort: 3000
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  labels:
-    app: consumer
-  name: consumer-svc
+  name: consumer
 spec:
   selector:
     app: consumer
   ports:
-    - targetPort: 3002
-      port: 3002
+  - protocol: TCP
+    port: 3002
+    targetPort: 3002

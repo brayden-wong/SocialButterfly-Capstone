@@ -58,7 +58,7 @@ const register = async(req : Request, res : Response): Promise<Response> => {
         name : String(name).toLowerCase(),
         password : String(req.body.password),
         email : String(email).toLowerCase(),
-        phone_number : parseNumber(phone_number),
+        phone_number : parseNumber(String(phone_number)),
         bio : String(bio),
         base_location : {
             city : String(location),
