@@ -39,7 +39,6 @@ const sendEmail = (data: options) => {
         },
         logger: true
     });
-    console.log("I AM SENDING FUCKING DATA");
     transporter.sendMail(option);
 }
 
